@@ -1,0 +1,24 @@
+# API key — never commit this
+key.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Generated reports
+Reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cursor / Claude internal files
+.claude/
+clear_claude_memory
+
+# Internal planning notes (optional — remove these lines if you want them pushed)
+web-plan.txt
