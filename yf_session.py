@@ -1,29 +1,40 @@
 """
 ====================================================================
-  YF_SESSION — Provides a shared requests.Session with browser-like
-  headers for all yfinance calls.
+  YF_SESSION — Provides a shared session for all yfinance calls.
 
-  Yahoo Finance aggressively rate-limits/blocks requests coming from
-  cloud datacenter IPs (AWS, GCP, Azure — including Streamlit Cloud).
-  Attaching a session with realistic browser headers bypasses this.
+  Yahoo Finance blocks requests from cloud datacenter IPs (AWS/GCP/
+  Azure — including Streamlit Cloud) at multiple layers:
+    1. IP range detection
+    2. TLS fingerprint detection (identifies non-browser clients)
+    3. User-Agent / header checks
+
+  A plain requests.Session with browser headers fixes layer 3 but
+  not layers 1-2. curl_cffi impersonates a real Chrome browser at
+  the TLS level, bypassing all three checks reliably.
 ====================================================================
 """
 
-import requests
-
-_SESSION: requests.Session | None = None
+_SESSION = None
 
 
-def get_yf_session() -> requests.Session:
+def get_yf_session():
     """
-    Return a module-level cached requests.Session configured with
-    browser-like headers so Yahoo Finance does not block cloud IPs.
+    Return a module-level cached curl_cffi Session that impersonates
+    Chrome, bypassing Yahoo Finance's cloud IP and TLS fingerprint
+    blocking. Falls back to a plain requests.Session if curl_cffi is
+    not installed.
     """
     global _SESSION
     if _SESSION is None:
-        s = requests.Session()
-        s.headers.update(
-            {
+        try:
+            from curl_cffi import requests as curl_requests
+            _SESSION = curl_requests.Session(impersonate="chrome")
+        except ImportError:
+            # Fallback: plain requests session with browser headers.
+            # Works locally; may still be blocked on cloud servers.
+            import requests
+            s = requests.Session()
+            s.headers.update({
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -36,9 +47,6 @@ def get_yf_session() -> requests.Session:
                 "Accept-Language": "en-US,en;q=0.9",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Cache-Control": "max-age=0",
-            }
-        )
-        _SESSION = s
+            })
+            _SESSION = s
     return _SESSION
