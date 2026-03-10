@@ -71,25 +71,34 @@ def _try_register_body_font() -> tuple[str, str, str]:
     Try to register a Unicode-capable TrueType body font.
     Returns (regular, bold, italic) font names.
     Falls back to Helvetica built-ins if no suitable font is found.
+
+    Priority:
+      1. Arial from Windows fonts (local dev on Windows)
+      2. DejaVu Sans from matplotlib's data directory (cross-platform,
+         works on Linux/Streamlit Cloud wherever matplotlib is installed)
+      3. Helvetica built-in (ReportLab fallback, no TTF needed)
     """
     candidates = [
         {
-            "regular": ("Arial",          r"C:\Windows\Fonts\arial.ttf"),
-            "bold":    ("Arial-Bold",     r"C:\Windows\Fonts\arialbd.ttf"),
-            "italic":  ("Arial-Italic",   r"C:\Windows\Fonts\ariali.ttf"),
+            "regular": ("Arial",        r"C:\Windows\Fonts\arial.ttf"),
+            "bold":    ("Arial-Bold",   r"C:\Windows\Fonts\arialbd.ttf"),
+            "italic":  ("Arial-Italic", r"C:\Windows\Fonts\ariali.ttf"),
         },
     ]
-    # Also try DejaVu Sans from matplotlib in the local .venv
-    import sys
-    for sp in sys.path:
-        deja_dir = os.path.join(sp, "matplotlib", "mpl-data", "fonts", "ttf")
+
+    # Use matplotlib.get_data_path() — guaranteed to work on any OS
+    # where matplotlib is installed (including Streamlit Cloud / Linux).
+    try:
+        import matplotlib
+        deja_dir = os.path.join(matplotlib.get_data_path(), "fonts", "ttf")
         if os.path.isdir(deja_dir):
             candidates.append({
                 "regular": ("DejaVuSans",        os.path.join(deja_dir, "DejaVuSans.ttf")),
                 "bold":    ("DejaVuSans-Bold",    os.path.join(deja_dir, "DejaVuSans-Bold.ttf")),
                 "italic":  ("DejaVuSans-Oblique", os.path.join(deja_dir, "DejaVuSans-Oblique.ttf")),
             })
-            break
+    except Exception:
+        pass
 
     for c in candidates:
         reg_name,  reg_path  = c["regular"]
