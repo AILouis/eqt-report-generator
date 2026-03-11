@@ -11,7 +11,7 @@ import requests
 
 from config import (
     OPENROUTER_MODEL, OPENROUTER_ENDPOINT,
-    LLM_MAX_RETRIES, LLM_TIMEOUT_S, LLM_RETRY_WAIT_BASE,
+    LLM_MAX_RETRIES, LLM_TIMEOUT_S, LLM_RETRY_WAIT_BASE, LLM_RATE_LIMIT_WAIT_BASE,
     LLM_HTTP_REFERER, LLM_WEB_SEARCH_MAX_RESULTS,
 )
 
@@ -63,8 +63,8 @@ def call_openrouter(
                 continue
             raise
 
-        if response.status_code == 429:
-            wait = (LLM_RETRY_WAIT_BASE * 2) * (2 ** attempt)
+        if response.status_code == 429 and attempt < LLM_MAX_RETRIES - 1:
+            wait = LLM_RATE_LIMIT_WAIT_BASE * (2 ** attempt)
             print(f"  Rate limited (429), retrying in {wait}s...")
             time.sleep(wait)
             continue

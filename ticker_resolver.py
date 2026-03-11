@@ -97,6 +97,11 @@ _BLOOMBERG_SUFFIX: dict[str, str] = {
 _REUTERS_US_CODES = {"O", "N", "K", "A", "P"}
 
 
+def _pad_hkex(code: str) -> str:
+    """Zero-pad HKEX numeric codes to 4 digits (e.g. '700' → '0700')."""
+    return code.zfill(4)
+
+
 # ── Normalisation ─────────────────────────────────────────────────
 
 def normalize_ticker(raw: str) -> str:
@@ -117,7 +122,7 @@ def normalize_ticker(raw: str) -> str:
             suffix = _BLOOMBERG_SUFFIX[code]
             # HKEX codes are zero-padded to 4 digits (e.g. 700 → 0700)
             if suffix == ".HK" and base.isdigit() and len(base) < 4:
-                base = base.zfill(4)
+                base = _pad_hkex(base)
             return base + suffix
         # Unknown code — drop it and hope the base is valid
         return base
@@ -132,7 +137,7 @@ def normalize_ticker(raw: str) -> str:
             return base
         # HKEX codes are zero-padded to 4 digits (e.g. 700.HK → 0700.HK)
         if ext == "HK" and base.isdigit() and len(base) < 4:
-            return base.zfill(4) + ".HK"
+            return _pad_hkex(base) + ".HK"
         # Everything else (.L, .T, .DE, …) is already a valid yfinance suffix
         return s
 

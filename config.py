@@ -17,9 +17,10 @@ AVAILABLE_MODELS = [
 ]
 
 # ── LLM call constants ─────────────────────────────────────────────
-LLM_MAX_RETRIES     = 3
-LLM_TIMEOUT_S       = 120
-LLM_RETRY_WAIT_BASE = 5   # base seconds; rate-limit wait starts at 10 × 2^attempt
+LLM_MAX_RETRIES          = 3
+LLM_TIMEOUT_S            = 120
+LLM_RETRY_WAIT_BASE      = 5    # base seconds for 5xx / network back-off
+LLM_RATE_LIMIT_WAIT_BASE = 10   # base seconds for 429 rate-limit back-off (10 × 2^attempt)
 
 # ── LLM call parameters (used by agents.py and llm_client.py) ───────
 LLM_TEMPERATURE = 0.3           # Agent call temperature
@@ -31,7 +32,7 @@ LLM_CIO_MAX_TOKENS = 4500       # CIO synthesis max_tokens
 LLM_HTTP_REFERER = "https://investment-research-tool"  # HTTP-Referer header for OpenRouter requests
 
 # ── Web search plugin config (used by llm_client.py) ───────
-LLM_WEB_SEARCH_MAX_RESULTS = 8   # Web search max_results per query
+LLM_WEB_SEARCH_MAX_RESULTS = 10   # Web search max_results per query
 
 # ── PDF brand colours (used by pdf_builder.py) ─────────────────────
 PDF_COLOR_DARK_BLUE = "#0D2B55"
@@ -87,7 +88,7 @@ GLOSSARY = {
     "Price-to-Sales": "A valuation ratio comparing a company's market capitalisation to its annual revenue; useful for valuing companies with negative earnings.",
     "Return on Equity": "Net income divided by shareholders' equity; measures how effectively management uses equity capital to generate profit.",
     "Revenue": "The total income a company generates from its primary business activities before any costs or expenses are deducted.",
-    "ROE": "See Return on Equity.",
+    "ROE": "Return on Equity — net income divided by shareholders' equity; measures how effectively management uses equity capital to generate profit.",
     # Market Flow & Sentiment
     "Dark Pool": "Private, off-exchange trading venues where large institutional orders are executed away from public markets to minimise market impact.",
     "Gamma Exposure": "The aggregate sensitivity of options market makers' delta hedges to price changes; high positive gamma can dampen volatility, while negative gamma can amplify it.",

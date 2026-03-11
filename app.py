@@ -116,10 +116,8 @@ if lookup_clicked:
             )
             st.session_state["resolved"] = resolved
             st.session_state["company_name"] = company_name
-            st.session_state.pop("pdf_bytes", None)
-            st.session_state.pop("pdf_filename", None)
-            st.session_state.pop("generation_log", None)
-            for key in ("overview_data", "tech_data", "dashboard_chart_bytes"):
+            for key in ("pdf_bytes", "pdf_filename", "generation_log",
+                        "overview_data", "tech_data", "dashboard_chart_bytes"):
                 st.session_state.pop(key, None)
 
 
@@ -147,9 +145,9 @@ if "resolved" in st.session_state:
     if "overview_data" not in st.session_state:
         try:
             with st.spinner("Loading market data..."):
-                _ov = fetch_stock_overview(resolved)
+                overview_data = fetch_stock_overview(resolved)
                 _td = compute_technical_data(resolved)
-                st.session_state["overview_data"] = _ov
+                st.session_state["overview_data"] = overview_data
                 st.session_state["tech_data"] = _td
                 if _td:
                     _chart = generate_chart_image(_td, resolved)
@@ -162,29 +160,29 @@ if "resolved" in st.session_state:
             st.session_state["tech_data"] = None
             st.session_state["dashboard_chart_bytes"] = None
 
-    _ov  = st.session_state.get("overview_data")
-    _cbs = st.session_state.get("dashboard_chart_bytes")
+    overview_data = st.session_state.get("overview_data")
+    chart_bytes   = st.session_state.get("dashboard_chart_bytes")
 
-    if _ov:
+    if overview_data:
         st.markdown("---")
-        price     = _ov.get("current_price", 0)
-        d1        = _ov.get("change_1d_pct")
-        _currency = _ov.get("currency", "USD") or "USD"
+        price     = overview_data.get("current_price", 0)
+        d1        = overview_data.get("change_1d_pct")
+        _currency = overview_data.get("currency", "USD") or "USD"
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Price",      fmt_price(price, _currency),
                   delta=f"{d1:+.2f}%" if d1 is not None else None)
-        c2.metric("5D Change",  fmt_pct(_ov.get("change_5d_pct")))
-        c3.metric("YTD Change", fmt_pct(_ov.get("change_ytd_pct")))
-        c4.metric("Market Cap", fmt_dollar(_ov.get("market_cap"), _currency))
+        c2.metric("5D Change",  fmt_pct(overview_data.get("change_5d_pct")))
+        c3.metric("YTD Change", fmt_pct(overview_data.get("change_ytd_pct")))
+        c4.metric("Market Cap", fmt_dollar(overview_data.get("market_cap"), _currency))
 
         c5, c6, c7, _ = st.columns(4)
-        c5.metric("52W High", fmt_price(_ov.get("high_52w"), _currency))
-        c6.metric("52W Low",  fmt_price(_ov.get("low_52w"), _currency))
-        c7.metric("Volume",   fmt_volume(_ov.get("volume")))
+        c5.metric("52W High", fmt_price(overview_data.get("high_52w"), _currency))
+        c6.metric("52W Low",  fmt_price(overview_data.get("low_52w"), _currency))
+        c7.metric("Volume",   fmt_volume(overview_data.get("volume")))
 
-    if _cbs:
-        st.image(_cbs, width='stretch',
+    if chart_bytes:
+        st.image(chart_bytes, width='stretch',
                  caption=f"{resolved} — 1 Year Price, Volume & RSI(14)")
 
     st.markdown("---")
@@ -201,40 +199,27 @@ if "resolved" in st.session_state:
             progress_bar = st.progress(0, text="Starting...")
             status_text = st.empty()
             log_buffer = io.StringIO()
-            log_placeholder = st.empty()
 
-            STEP_LABELS = [
-                "",                        # 0 — unused (0% is "Starting")
-                "Fetching market data",    # 1
-                "Technical analyst",       # 2
-                "Macro strategist",        # 3
-                "Flow & positioning",      # 4
-                "Narrative analyst",       # 5
-                "Fundamental analyst",     # 6
-                "CIO synthesis",           # 7
-                "Building PDF",            # 8
-            ]
-
-            STEP_QUIPS = [
-                "",  # 0 — unused
-                "Grabbing the freshest prices off the exchange floor...",
-                "Squinting at candlesticks and muttering about support levels...",
-                "Consulting the global macro crystal ball (it's cloudy, as always)...",
-                "Tracking where the smart money is hiding...",
-                "Reading every headline so you don't have to...",
-                "Crunching earnings, margins, and that one footnote nobody reads...",
-                "The CIO is brewing coffee and synthesising all of the above...",
-                "Typesetting your report — almost there, promise!",
+            STEPS = [
+                ("", ""),                         # 0 — unused (0% is "Starting")
+                ("Fetching market data",    "Grabbing the freshest prices off the exchange floor..."),
+                ("Technical analyst",       "Squinting at candlesticks and muttering about support levels..."),
+                ("Macro strategist",        "Consulting the global macro crystal ball (it's cloudy, as always)..."),
+                ("Flow & positioning",      "Tracking where the smart money is hiding..."),
+                ("Narrative analyst",       "Reading every headline so you don't have to..."),
+                ("Fundamental analyst",     "Crunching earnings, margins, and that one footnote nobody reads..."),
+                ("CIO synthesis",           "The CIO is brewing coffee and synthesising all of the above..."),
+                ("Building PDF",            "Typesetting your report — almost there, promise!"),
             ]
 
             def on_progress(step: int, total: int, label: str) -> None:
                 fraction = step / total
                 pct = int(fraction * 100)
+                step_label, quip = STEPS[step] if step < len(STEPS) else ("", "")
                 progress_bar.progress(
                     fraction,
-                    text=f"{pct}% — {STEP_LABELS[step]} ({step}/{total})",
+                    text=f"{pct}% — {step_label} ({step}/{total})",
                 )
-                quip = STEP_QUIPS[step] if step < len(STEP_QUIPS) else ""
                 if quip:
                     status_text.caption(quip)
                 else:

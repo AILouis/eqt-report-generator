@@ -52,7 +52,7 @@ def generate_report(
     print(f"\n{'='*60}")
     print(f"  INVESTMENT RESEARCH SYSTEM  —  {ticker}")
     print(f"{'='*60}")
-    print(f"  Date    : {datetime.now().strftime('%B %d, %Y %H:%M')}")
+    print(f"  Date    : {now.strftime('%B %d, %Y %H:%M')}")
     print(f"  Model   : {model}")
     print(f"  Via     : OpenRouter")
     print(f"  Output  : {output_path}")
