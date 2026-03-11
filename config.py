@@ -39,6 +39,69 @@ PDF_COLOR_DARK_BLUE = "#0D2B55"
 PDF_COLOR_ACCENT    = "#C8A951"
 PDF_COLOR_LIGHT_BG  = "#E8EDF5"   # B3: deeper contrast than old #F4F6FA
 
+# ── Chart colors (used by market_data.py) ───────────────────────────
+CHART_COLOR_UP      = "#26A69A"   # Bullish / positive
+CHART_COLOR_DOWN    = "#EF5350"   # Bearish / negative
+CHART_COLOR_SMA20   = "#2962FF"   # 20-day SMA line
+CHART_COLOR_SMA50   = "#FF6D00"   # 50-day SMA line
+CHART_COLOR_SMA200  = "#6600CC"   # 200-day SMA line
+CHART_COLOR_RSI     = "#7B1FA2"   # RSI indicator
+CHART_COLOR_GRID    = "#F0F3FA"   # Grid lines
+CHART_COLOR_BG      = "#FFFFFF"   # Chart background
+
+# ── Technical indicator periods ─────────────────────────────────────
+SMA_PERIODS         = [20, 50, 100, 200]
+RSI_PERIOD          = 14
+MACD_FAST           = 12
+MACD_SLOW           = 26
+MACD_SIGNAL         = 9
+SEASONALITY_YEARS   = 5
+
+# ── Canonical agent run/display order ─────────────────────────────
+AGENT_RUN_ORDER = ["technical", "macro", "flow", "narrative", "fundamental"]
+
+# ── API key prefix (used by app.py for validation) ────────────────
+API_KEY_PREFIX = "sk-or-"
+
+# ── Chart subplot colors (RSI/MACD panels, seasonality bars) ──────
+CHART_COLOR_RSI_OB      = "#EF5350"   # RSI overbought line
+CHART_COLOR_RSI_OS      = "#26A69A"   # RSI oversold line
+CHART_COLOR_MACD_LINE   = "#2962FF"
+CHART_COLOR_MACD_SIGNAL = "#FF6D00"
+CHART_COLOR_EDGE        = "#CCCCCC"
+CHART_COLOR_ZERO_LINE   = "#888888"
+CHART_COLOR_BAR_LABEL   = "#444444"
+
+# ── Prompt header constants (used by market_data.py) ──────────────
+PROMPT_HEADER_SNAPSHOT = "=== AUTHORITATIVE MARKET DATA SNAPSHOT ==="
+PROMPT_HEADER_TECH_INDICATORS = "=== COMPUTED TECHNICAL INDICATORS ==="
+PROMPT_HEADER_MOMENTUM = "=== MOMENTUM INDICATORS ==="
+PROMPT_HEADER_PRICE_HISTORY = (
+    "=== RECENT PRICE HISTORY (Last 30 Sessions) ==="
+)
+PROMPT_HEADER_SEASONALITY = "=== 5-YEAR AVERAGE MONTHLY SEASONALITY ==="
+
+# ── Month labels (shared by market_data.py) ───────────────────────
+MONTH_LABELS = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+# ── PDF section title constants (used by pdf_builder.py) ──────────
+PDF_SECTION_OVERVIEW = "Stock Overview"
+PDF_SECTION_CIO = "CIO Synthesis"
+PDF_SECTION_GLOSSARY = "Glossary: Terms Explained"
+PDF_SECTION_REFERENCES = "Relevant References & Sources"
+
+# ── CIO system prompt (used by agents.py) ─────────────────────────
+CIO_SYSTEM_PROMPT = (
+    "You are the CIO of an elite multi-strategy hedge fund. "
+    "Respond ONLY with the structured sections requested. "
+    "Use bullet points (•) for all list items. "
+    "Do NOT use markdown formatting. "
+    "Do NOT add a SOURCES block."
+)
+
 
 # ══════════════════════════════════════════════════════════════════
 #  GLOSSARY — ~50 curated terms; pdf_builder filters to those that
@@ -80,7 +143,6 @@ GLOSSARY = {
     "EPS": "Earnings Per Share — net income divided by the number of outstanding shares; a key measure of corporate profitability on a per-share basis.",
     "EV/EBITDA": "Enterprise Value divided by EBITDA — a valuation multiple used to compare companies independent of capital structure and tax rates; lower values may indicate undervaluation.",
     "FCF": "Free Cash Flow — operating cash flow minus capital expenditures; represents the cash a company generates after maintaining and expanding its asset base.",
-    "Free Cash Flow": "Operating cash flow minus capital expenditures; represents the cash a company generates after maintaining and expanding its asset base.",
     "Gross Margin": "Gross profit (revenue minus cost of goods sold) divided by revenue, expressed as a percentage; a higher gross margin indicates greater pricing power or production efficiency.",
     "Market Cap": "Market Capitalisation — the total market value of a company's outstanding shares (share price multiplied by shares outstanding).",
     "Operating Margin": "Operating income divided by revenue; reflects how efficiently a company converts sales into profit before interest and taxes.",

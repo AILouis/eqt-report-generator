@@ -76,8 +76,10 @@ if __name__ == "__main__":
         "--ticker", "-t", type=str,
         help="Stock ticker — plain (NVDA), Bloomberg (NVDA US / SHEL LN), or yfinance (SHEL.L)",
     )
-    parser.add_argument("--output",  "-o", type=str, default=None, help="Output PDF filename")
-    parser.add_argument("--api-key",       type=str, default=None, help="OpenRouter API key")
+    parser.add_argument("--output", "-o", type=str, default=None,
+                        help="Output PDF filename")
+    parser.add_argument("--api-key", type=str, default=None,
+                        help="OpenRouter API key")
     args = parser.parse_args()
 
     raw_ticker = args.ticker

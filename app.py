@@ -21,9 +21,9 @@ import contextlib
 import streamlit as st
 import streamlit.components.v1 as _components
 
+from config import AVAILABLE_MODELS, API_KEY_PREFIX
 from ticker_resolver import resolve_ticker
 from orchestrator import generate_report
-from config import AVAILABLE_MODELS
 from market_data import (
     fetch_stock_overview,
     compute_technical_data,
@@ -56,12 +56,12 @@ with st.sidebar:
         placeholder="sk-or-...",
         help="Get a free key at openrouter.ai/keys · Never stored, only used for this session.",
     )
-    _custom_active = bool(st.session_state.get("custom_model_id", "").strip())
+    custom_active = bool(st.session_state.get("custom_model_id", "").strip())
     selected_model = st.selectbox(
         "Model",
         options=AVAILABLE_MODELS,
         index=0,
-        disabled=_custom_active,
+        disabled=custom_active,
         help="All models use OpenRouter's :online suffix for real-time web search.",
     )
     custom_model = st.text_input(
@@ -128,9 +128,9 @@ if "resolved" in st.session_state:
     resolved = st.session_state["resolved"]
     company_name = st.session_state["company_name"]
 
-    _translation_msg = st.session_state.get("ticker_translation")
-    if _translation_msg:
-        st.info(_translation_msg)
+    translation_msg = st.session_state.get("ticker_translation")
+    if translation_msg:
+        st.info(translation_msg)
 
     st.subheader("Step 2 — Confirm and generate")
 
@@ -146,12 +146,12 @@ if "resolved" in st.session_state:
         try:
             with st.spinner("Loading market data..."):
                 overview_data = fetch_stock_overview(resolved)
-                _td = compute_technical_data(resolved)
+                tech_data = compute_technical_data(resolved)
                 st.session_state["overview_data"] = overview_data
-                st.session_state["tech_data"] = _td
-                if _td:
-                    _chart = generate_chart_image(_td, resolved)
-                    st.session_state["dashboard_chart_bytes"] = _chart.getvalue() if _chart else None
+                st.session_state["tech_data"] = tech_data
+                if tech_data:
+                    chart_buf = generate_chart_image(tech_data, resolved)
+                    st.session_state["dashboard_chart_bytes"] = chart_buf.getvalue() if chart_buf else None
                 else:
                     st.session_state["dashboard_chart_bytes"] = None
         except Exception as e:
@@ -167,18 +167,18 @@ if "resolved" in st.session_state:
         st.markdown("---")
         price     = overview_data.get("current_price", 0)
         d1        = overview_data.get("change_1d_pct")
-        _currency = overview_data.get("currency", "USD") or "USD"
+        currency = overview_data.get("currency", "USD") or "USD"
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Price",      fmt_price(price, _currency),
+        c1.metric("Price",      fmt_price(price, currency),
                   delta=f"{d1:+.2f}%" if d1 is not None else None)
         c2.metric("5D Change",  fmt_pct(overview_data.get("change_5d_pct")))
         c3.metric("YTD Change", fmt_pct(overview_data.get("change_ytd_pct")))
-        c4.metric("Market Cap", fmt_dollar(overview_data.get("market_cap"), _currency))
+        c4.metric("Market Cap", fmt_dollar(overview_data.get("market_cap"), currency))
 
         c5, c6, c7, _ = st.columns(4)
-        c5.metric("52W High", fmt_price(overview_data.get("high_52w"), _currency))
-        c6.metric("52W Low",  fmt_price(overview_data.get("low_52w"), _currency))
+        c5.metric("52W High", fmt_price(overview_data.get("high_52w"), currency))
+        c6.metric("52W Low",  fmt_price(overview_data.get("low_52w"), currency))
         c7.metric("Volume",   fmt_volume(overview_data.get("volume")))
 
     if chart_bytes:
@@ -193,8 +193,12 @@ if "resolved" in st.session_state:
         api_key = api_key.strip()
         if not api_key:
             st.error("Please enter your OpenRouter API key in the sidebar first.")
-        elif not api_key.startswith("sk-or-"):
-            st.warning("API key doesn't look like an OpenRouter key (expected prefix: sk-or-). Double-check it before proceeding.")
+        elif not api_key.startswith(API_KEY_PREFIX):
+            st.warning(
+                f"API key doesn't look like an OpenRouter key "
+                f"(expected prefix: {API_KEY_PREFIX}). "
+                "Double-check it before proceeding."
+            )
         else:
             progress_bar = st.progress(0, text="Starting...")
             status_text = st.empty()
@@ -213,6 +217,7 @@ if "resolved" in st.session_state:
             ]
 
             def on_progress(step: int, total: int, label: str) -> None:
+                """Update progress bar and status quip from orchestrator callbacks."""
                 fraction = step / total
                 pct = int(fraction * 100)
                 step_label, quip = STEPS[step] if step < len(STEPS) else ("", "")

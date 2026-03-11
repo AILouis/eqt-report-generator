@@ -14,6 +14,8 @@
 ====================================================================
 """
 
+import warnings
+
 _SESSION = None
 
 
@@ -32,6 +34,11 @@ def get_yf_session():
         except ImportError:
             # Fallback: plain requests session with browser headers.
             # Works locally; may still be blocked on cloud servers.
+            warnings.warn(
+                "curl_cffi not installed — falling back to plain requests. "
+                "Yahoo Finance may block requests from cloud IPs.",
+                stacklevel=2,
+            )
             import requests
             s = requests.Session()
             s.headers.update({

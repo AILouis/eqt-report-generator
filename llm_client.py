@@ -7,13 +7,33 @@
 """
 
 import time
+
 import requests
 
 from config import (
     OPENROUTER_MODEL, OPENROUTER_ENDPOINT,
-    LLM_MAX_RETRIES, LLM_TIMEOUT_S, LLM_RETRY_WAIT_BASE, LLM_RATE_LIMIT_WAIT_BASE,
+    LLM_MAX_RETRIES, LLM_TIMEOUT_S,
+    LLM_RETRY_WAIT_BASE, LLM_RATE_LIMIT_WAIT_BASE,
     LLM_HTTP_REFERER, LLM_WEB_SEARCH_MAX_RESULTS,
 )
+
+
+# ── Custom exceptions ─────────────────────────────────────────────
+
+class OpenRouterError(Exception):
+    """Base exception for all OpenRouter API errors."""
+
+
+class OpenRouterHTTPError(OpenRouterError):
+    """Non-200 HTTP response from OpenRouter."""
+
+
+class OpenRouterEmptyResponseError(OpenRouterError):
+    """API returned an empty or malformed response."""
+
+
+class OpenRouterMaxRetriesError(OpenRouterError):
+    """All retry attempts exhausted."""
 
 
 def call_openrouter(
@@ -76,17 +96,28 @@ def call_openrouter(
             continue
 
         if response.status_code != 200:
-            raise Exception(f"HTTP {response.status_code}: {response.text[:500]}")
+            raise OpenRouterHTTPError(
+                f"HTTP {response.status_code}: {response.text[:500]}"
+            )
 
         data = response.json()
         choices = data.get("choices") or []
         if not choices:
-            raise Exception(f"Empty choices in API response: {str(data)[:200]}")
+            raise OpenRouterEmptyResponseError(
+                f"Empty choices in API response: {str(data)[:200]}"
+            )
         content = (choices[0].get("message") or {}).get("content")
         if content is None:
-            raise Exception(f"Null content in API response: {str(data)[:200]}")
+            raise OpenRouterEmptyResponseError(
+                f"Null content in API response: {str(data)[:200]}"
+            )
         if not content.strip():
-            raise Exception("Empty LLM response (whitespace-only content)")
+            raise OpenRouterEmptyResponseError(
+                "Empty LLM response (whitespace-only content)"
+            )
         return content.strip()
 
-    raise Exception("OpenRouter call failed after maximum retries.")
+    # Exponential back-off exhausted: 429 → 10×2^n s, 5xx → 5×2^n s
+    raise OpenRouterMaxRetriesError(
+        "OpenRouter call failed after maximum retries."
+    )
