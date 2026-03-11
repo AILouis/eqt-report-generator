@@ -373,7 +373,7 @@ Different financial data providers use different naming conventions for the same
 
 ### `requirements.txt` — Dependency list
 
-A plain text file listing the Python libraries this project needs. When you run `pip install -r requirements.txt`, pip reads this file and installs everything in it. The six libraries are: `requests`, `yfinance`, `reportlab`, `mplfinance`, `streamlit`, `curl_cffi`.
+A plain text file listing the Python libraries this project needs. When you run `pip install -r requirements.txt`, pip reads this file and installs all the libraries listed. 
 
 ### `yf_session.py` — Shared session for Yahoo Finance calls
 
