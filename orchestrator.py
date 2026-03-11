@@ -41,8 +41,8 @@ def generate_report(
     where step goes from 1 to total (8) at each checkpoint.
     """
     ticker = ticker.upper().strip()
+    now = datetime.now()
     if output_path is None:
-        now = datetime.now()
         date_str = now.strftime("%Y%m%d")
         time_str = now.strftime("%H%M")
         report_dir = os.path.join("Reports", date_str, ticker)
