@@ -85,10 +85,14 @@ def generate_report(
         overview_data["ticker"] = ticker
     step_times["Step 0 (market data)"] = time.time() - t0
     if overview_data is not None:
-        print(
-            f"  Current: ${overview_data['current_price']:,.2f} | "
-            f"52W: ${overview_data['low_52w']:,.2f}–${overview_data['high_52w']:,.2f}\n"
-        )
+        current_price = overview_data.get('current_price')
+        low_52w = overview_data.get('low_52w')
+        high_52w = overview_data.get('high_52w')
+        if current_price is not None and low_52w is not None and high_52w is not None:
+            print(
+                f"  Current: ${current_price:,.2f} | "
+                f"52W: ${low_52w:,.2f}–${high_52w:,.2f}\n"
+            )
     else:
         print("  (Overview data unavailable; section will be omitted.)\n")
 

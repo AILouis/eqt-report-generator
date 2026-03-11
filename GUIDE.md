@@ -155,7 +155,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-This downloads and installs: `requests`, `yfinance`, `reportlab`, `mplfinance`, and `streamlit`. It may take 1–2 minutes depending on your internet connection.
+This downloads and installs: `requests`, `yfinance`, `reportlab`, `mplfinance`, `streamlit`, and `curl_cffi`. It may take 1–2 minutes depending on your internet connection.
 
 ### Step 6: Add your API key (for the CLI)
 
@@ -356,7 +356,15 @@ Different financial data providers use different naming conventions for the same
 
 ### `requirements.txt` — Dependency list
 
-A plain text file listing the Python libraries this project needs. When you run `pip install -r requirements.txt`, pip reads this file and installs everything in it. The five libraries are: `requests`, `yfinance`, `reportlab`, `mplfinance`, `streamlit`.
+A plain text file listing the Python libraries this project needs. When you run `pip install -r requirements.txt`, pip reads this file and installs everything in it. The six libraries are: `requests`, `yfinance`, `reportlab`, `mplfinance`, `streamlit`, `curl_cffi`.
+
+### `yf_session.py` — Shared session for Yahoo Finance calls
+
+Yahoo Finance blocks requests from cloud datacenter IPs (AWS, GCP, Azure — including Streamlit Cloud) at multiple layers: IP range detection, TLS fingerprint detection, and header checks. This file provides a shared `curl_cffi` session that impersonates a Chrome browser at the TLS level, bypassing all three checks reliably.
+
+- **`get_yf_session()`**: Returns a cached session object. Uses `curl_cffi` with Chrome impersonation if available; falls back to a plain `requests.Session` with browser headers for local development.
+
+Both `market_data.py` and `ticker_resolver.py` import this session to make their yfinance calls. If you are deploying to a cloud server, make sure `curl_cffi` is installed (it is in `requirements.txt`).
 
 ---
 

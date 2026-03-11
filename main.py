@@ -91,4 +91,8 @@ if __name__ == "__main__":
 
     confirmed_ticker = _confirm_ticker(raw_ticker)
 
-    generate_report(ticker=confirmed_ticker, api_key=args.api_key, output_path=args.output)
+    try:
+        generate_report(ticker=confirmed_ticker, api_key=args.api_key, output_path=args.output)
+    except Exception as e:
+        print(f"\nERROR: Report generation failed: {e}")
+        sys.exit(1)

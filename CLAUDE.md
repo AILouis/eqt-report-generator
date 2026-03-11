@@ -39,14 +39,17 @@ app.py (Streamlit web UI)
   ├── config.py          ← AVAILABLE_MODELS list for the model dropdown
   └── market_data.py     ← fetch_stock_overview, compute_technical_data, generate_chart_image,
                             fmt_pct, fmt_dollar, fmt_price, fmt_volume (dashboard metrics)
+        └── yf_session.py  ← Shared curl_cffi session for Yahoo Finance (cloud IP bypass)
 
 main.py (CLI entry point)
   ├── ticker_resolver.py ← normalise raw input + yfinance company lookup
+  │     └── yf_session.py ← Shared session for yfinance calls
   └── orchestrator.py
         ├── config.py          ← all constants, agent definitions, all prompts
         ├── agents.py          ← builds prompts, calls LLM (uses config + llm_client)
         │     └── llm_client.py ← raw HTTP POST to OpenRouter, retry logic only
         ├── market_data.py     ← yfinance fetch + fmt_pct/fmt_dollar/fmt_price/fmt_volume
+        │     └── yf_session.py  ← Shared curl_cffi session (cloud IP bypass)
         │                         + compute_technical_data() + format_technical_block()
         │                         + generate_chart_image() (mplfinance candlestick chart)
         │                         + generate_seasonality_chart() (monthly returns bar chart)
@@ -142,7 +145,7 @@ The References section at the end of the PDF is populated from `all_sources` col
 All agent prompts, personas, and section structures live in `config.py`:
 - `AGENTS` dict: keys are `macro`, `flow`, `technical`, `narrative`, `fundamental`. Each entry has `name`, `description`, `persona` (system prompt), and `task` (user prompt template with `{ticker}`)
 - `GROUNDING_INSTRUCTION`: citation rules injected into every agent's system prompt
-- `CONTENT_GUIDELINES`: formatting rules (ALL CAPS numbered sections, bullet points, 400-word limit) — injected into every agent's user message
+- `CONTENT_GUIDELINES`: formatting rules (ALL CAPS numbered sections, bullet points, 400-word limit for most agents, 450 for technical agent) — injected into every agent's user message
 - `CIO_TASK`: CIO synthesis prompt with `{ticker}`, `{macro}`, `{flow}`, `{technical}`, `{narrative}`, `{fundamental}`, and `{market_snapshot}` placeholders
 - `GLOSSARY`: dict of ~50 curated financial terms with definitions — `pdf_builder.py` filters this to terms that appear in the report text
 
@@ -160,4 +163,4 @@ The technical agent's `task` prompt is structured differently from the others: i
 
 ## Dependencies
 
-`requests`, `yfinance`, `reportlab`, `mplfinance`, `streamlit` — see `requirements.txt`.
+`requests`, `yfinance`, `reportlab`, `mplfinance`, `streamlit`, `curl_cffi` — see `requirements.txt`.

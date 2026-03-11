@@ -12,6 +12,7 @@ import requests
 from config import (
     OPENROUTER_MODEL, OPENROUTER_ENDPOINT,
     LLM_MAX_RETRIES, LLM_TIMEOUT_S, LLM_RETRY_WAIT_BASE,
+    LLM_HTTP_REFERER, LLM_WEB_SEARCH_MAX_RESULTS,
 )
 
 
@@ -37,7 +38,7 @@ def call_openrouter(
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://investment-research-tool",
+        "HTTP-Referer": LLM_HTTP_REFERER,
     }
 
     body = {
@@ -47,7 +48,7 @@ def call_openrouter(
         "max_tokens": max_tokens,
     }
     if use_web_search:
-        body["plugins"] = [{"id": "web", "max_results": 8}]
+        body["plugins"] = [{"id": "web", "max_results": LLM_WEB_SEARCH_MAX_RESULTS}]
 
     for attempt in range(LLM_MAX_RETRIES):
         try:

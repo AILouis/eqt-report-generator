@@ -147,15 +147,7 @@ def format_snapshot_for_prompt(overview_data: dict | None) -> str:
         return fmt_dollar(v, currency)
 
     def _vol(v):
-        if v is None:
-            return "N/A"
-        if v >= 1e9:
-            return f"{v / 1e9:.2f}B"
-        if v >= 1e6:
-            return f"{v / 1e6:.1f}M"
-        if v >= 1e3:
-            return f"{v / 1e3:.0f}K"
-        return f"{v:,.0f}"
+        return _format_vol(v)
 
     now_str = datetime.now().strftime("%B %d, %Y %H:%M")
     ticker_raw = overview_data.get("ticker", "")
@@ -223,28 +215,23 @@ def compute_technical_data(ticker: str) -> dict | None:
 
         # RSI-14
         rsi_val = None
-        try:
-            delta = hist["Close"].diff()
-            gain  = delta.clip(lower=0).rolling(14).mean()
-            loss  = (-delta.clip(upper=0)).rolling(14).mean()
-            rs    = gain / loss
-            rsi_series = 100 - (100 / (1 + rs))
-            rsi_val = round(float(rsi_series.dropna().iloc[-1]), 2)
-        except Exception:
-            pass
+        rsi_series = _compute_rsi(hist["Close"])
+        if rsi_series is not None:
+            try:
+                rsi_val = round(float(rsi_series.dropna().iloc[-1]), 2)
+            except Exception:
+                pass
 
         # MACD (12/26/9)
         macd_line = macd_signal = macd_hist_val = None
-        try:
-            ema12 = hist["Close"].ewm(span=12, adjust=False).mean()
-            ema26 = hist["Close"].ewm(span=26, adjust=False).mean()
-            macd_raw    = ema12 - ema26
-            signal_raw  = macd_raw.ewm(span=9, adjust=False).mean()
-            macd_line   = round(float(macd_raw.iloc[-1]), 4)
-            macd_signal = round(float(signal_raw.iloc[-1]), 4)
-            macd_hist_val = round(float((macd_raw - signal_raw).iloc[-1]), 4)
-        except Exception:
-            pass
+        macd_raw, signal_raw, hist_raw = _compute_macd(hist["Close"])
+        if macd_raw is not None:
+            try:
+                macd_line = round(float(macd_raw.iloc[-1]), 4)
+                macd_signal = round(float(signal_raw.iloc[-1]), 4)
+                macd_hist_val = round(float(hist_raw.iloc[-1]), 4)
+            except Exception:
+                pass
 
         last30 = hist.tail(30).reset_index()
         ohlcv_rows = []
@@ -313,15 +300,7 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
         return f"{sym}{v:,.0f}" if zero_dec else f"{sym}{v:,.2f}"
 
     def _vol(v):
-        if v is None:
-            return "N/A"
-        if v >= 1e9:
-            return f"{v / 1e9:.1f}B"
-        if v >= 1e6:
-            return f"{v / 1e6:.1f}M"
-        if v >= 1e3:
-            return f"{v / 1e3:.0f}K"
-        return f"{v:,.0f}"
+        return _format_vol(v)
 
     def _dist_str(d):
         if d is None:
@@ -424,6 +403,54 @@ def fmt_volume(v) -> str:
     return f"{v:,.0f}"
 
 
+# ── Shared helper functions (used by multiple formatters) ──────────────────
+
+def _format_vol(v) -> str:
+    """Format volume for prompt blocks (returns N/A for None, slightly different precision)."""
+    if v is None:
+        return "N/A"
+    if v >= 1e9:
+        return f"{v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"{v / 1e6:.1f}M"
+    if v >= 1e3:
+        return f"{v / 1e3:.0f}K"
+    return f"{v:,.0f}"
+
+
+def _compute_rsi(close_series, period: int = 14) -> "pd.Series | None":
+    """
+    Compute RSI from a close price Series.
+    Returns the RSI series, or None on error.
+    """
+    try:
+        import pandas as pd
+        delta = close_series.diff()
+        gain = delta.clip(lower=0).rolling(period).mean()
+        loss = (-delta.clip(upper=0)).rolling(period).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+    except Exception:
+        return None
+
+
+def _compute_macd(close_series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple:
+    """
+    Compute MACD from a close price Series.
+    Returns (macd_line, signal_line, histogram) as tuple of Series or None values.
+    """
+    try:
+        ema_fast = close_series.ewm(span=fast, adjust=False).mean()
+        ema_slow = close_series.ewm(span=slow, adjust=False).mean()
+        macd_raw = ema_fast - ema_slow
+        signal_raw = macd_raw.ewm(span=signal, adjust=False).mean()
+        hist = macd_raw - signal_raw
+        return macd_raw, signal_raw, hist
+    except Exception:
+        return None, None, None
+
+
 def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO | None:
     """
     Render a candlestick chart with SMA overlays and volume subplot.
@@ -497,31 +524,20 @@ def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO
         )
 
         rsi_display = None
-        try:
-            delta = warmup["Close"].diff()
-            gain  = delta.clip(lower=0).rolling(14).mean()
-            loss  = (-delta.clip(upper=0)).rolling(14).mean()
-            rs    = gain / loss
-            rsi_full = 100 - (100 / (1 + rs))
+        rsi_full = _compute_rsi(warmup["Close"])
+        if rsi_full is not None:
             rsi_display = rsi_full.reindex(df.index)
-        except Exception:
-            rsi_display = None
 
         rsi_has_data = rsi_display is not None and rsi_display.notna().any()
 
         macd_line_series = macd_signal_series = macd_hist_series = None
         macd_has_data = False
-        try:
-            ema12 = warmup["Close"].ewm(span=12, adjust=False).mean()
-            ema26 = warmup["Close"].ewm(span=26, adjust=False).mean()
-            macd_raw     = ema12 - ema26
-            signal_raw   = macd_raw.ewm(span=9, adjust=False).mean()
-            macd_line_series   = macd_raw.reindex(df.index)
+        macd_raw, signal_raw, hist_raw = _compute_macd(warmup["Close"])
+        if macd_raw is not None:
+            macd_line_series = macd_raw.reindex(df.index)
             macd_signal_series = signal_raw.reindex(df.index)
-            macd_hist_series   = (macd_raw - signal_raw).reindex(df.index)
+            macd_hist_series = hist_raw.reindex(df.index)
             macd_has_data = macd_line_series.notna().any()
-        except Exception:
-            pass
 
         additional_plots = list(sma_addplots)
         if rsi_has_data:

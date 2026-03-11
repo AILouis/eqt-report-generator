@@ -21,6 +21,18 @@ LLM_MAX_RETRIES     = 3
 LLM_TIMEOUT_S       = 120
 LLM_RETRY_WAIT_BASE = 5   # base seconds; rate-limit wait starts at 10 × 2^attempt
 
+# ── LLM call parameters (used by agents.py and llm_client.py) ───────
+LLM_TEMPERATURE = 0.3           # Agent call temperature
+LLM_MAX_TOKENS = 1200           # Agent call max_tokens
+LLM_CIO_TEMPERATURE = 0.2       # CIO synthesis temperature
+LLM_CIO_MAX_TOKENS = 4500       # CIO synthesis max_tokens
+
+# ── HTTP request headers (used by llm_client.py) ───────
+LLM_HTTP_REFERER = "https://investment-research-tool"  # HTTP-Referer header for OpenRouter requests
+
+# ── Web search plugin config (used by llm_client.py) ───────
+LLM_WEB_SEARCH_MAX_RESULTS = 8   # Web search max_results per query
+
 # ── PDF brand colours (used by pdf_builder.py) ─────────────────────
 PDF_COLOR_DARK_BLUE = "#0D2B55"
 PDF_COLOR_ACCENT    = "#C8A951"

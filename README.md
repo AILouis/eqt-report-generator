@@ -29,6 +29,8 @@ After all five agents complete their analysis, the **CIO (Chief Investment Offic
 
 All agents use real-time web search via the OpenRouter web plugin, except for technical indicators — those are computed locally from Yahoo Finance price history so the technical analysis is always internally consistent with the live price. Stock overview data (current price, 52W high/low, market cap, volume, YTD change) is also fetched live from Yahoo Finance.
 
+**Cloud deployment note:** This project uses `curl_cffi` to bypass Yahoo Finance's cloud IP blocking. When deploying to Streamlit Cloud, AWS, GCP, or Azure, `curl_cffi` is required. It falls back gracefully to standard `requests` when running locally if `curl_cffi` is not installed.
+
 The final output is a professionally formatted **PDF report**.
 
 ---
@@ -169,6 +171,7 @@ Eqt_Report_Generator/
 ├── agents.py          # Agent runners — constructs prompts and calls the LLM
 ├── llm_client.py      # Raw HTTP caller for OpenRouter API with retry logic
 ├── market_data.py     # Live stock data via yfinance + chart generation
+├── yf_session.py      # Shared curl_cffi session (bypasses Yahoo Finance cloud blocking)
 ├── text_utils.py      # Citation extraction and text cleaning utilities
 ├── pdf_builder.py     # ReportLab PDF assembly
 ├── ticker_resolver.py # Converts Bloomberg/Reuters notation to yfinance symbols

@@ -103,19 +103,24 @@ if lookup_clicked:
     if not raw_ticker.strip():
         st.error("Please enter a ticker first.")
     else:
-        with st.spinner("Resolving ticker..."):
-            resolved, company_name = resolve_ticker(raw_ticker.strip())
-        raw_upper = raw_ticker.strip().upper()
-        st.session_state["ticker_translation"] = (
-            f"Interpreted '{raw_ticker.strip()}' as '{resolved}'" if resolved != raw_upper else None
-        )
-        st.session_state["resolved"] = resolved
-        st.session_state["company_name"] = company_name
-        st.session_state.pop("pdf_bytes", None)
-        st.session_state.pop("pdf_filename", None)
-        st.session_state.pop("generation_log", None)
-        for key in ("overview_data", "tech_data", "dashboard_chart_bytes"):
-            st.session_state.pop(key, None)
+        try:
+            with st.spinner("Resolving ticker..."):
+                resolved, company_name = resolve_ticker(raw_ticker.strip())
+        except Exception as e:
+            st.error(f"Failed to resolve ticker: {e}")
+            resolved, company_name = None, None
+        if resolved:
+            raw_upper = raw_ticker.strip().upper()
+            st.session_state["ticker_translation"] = (
+                f"Interpreted '{raw_ticker.strip()}' as '{resolved}'" if resolved != raw_upper else None
+            )
+            st.session_state["resolved"] = resolved
+            st.session_state["company_name"] = company_name
+            st.session_state.pop("pdf_bytes", None)
+            st.session_state.pop("pdf_filename", None)
+            st.session_state.pop("generation_log", None)
+            for key in ("overview_data", "tech_data", "dashboard_chart_bytes"):
+                st.session_state.pop(key, None)
 
 
 # ── Phase 2: Confirm + Generate ───────────────────────────────────
@@ -140,13 +145,22 @@ if "resolved" in st.session_state:
         )
 
     if "overview_data" not in st.session_state:
-        with st.spinner("Loading market data..."):
-            _ov = fetch_stock_overview(resolved)
-            _td = compute_technical_data(resolved)
-            st.session_state["overview_data"] = _ov
-            st.session_state["tech_data"] = _td
-            _chart = generate_chart_image(_td, resolved) if _td else None
-            st.session_state["dashboard_chart_bytes"] = _chart.getvalue() if _chart else None
+        try:
+            with st.spinner("Loading market data..."):
+                _ov = fetch_stock_overview(resolved)
+                _td = compute_technical_data(resolved)
+                st.session_state["overview_data"] = _ov
+                st.session_state["tech_data"] = _td
+                if _td:
+                    _chart = generate_chart_image(_td, resolved)
+                    st.session_state["dashboard_chart_bytes"] = _chart.getvalue() if _chart else None
+                else:
+                    st.session_state["dashboard_chart_bytes"] = None
+        except Exception as e:
+            st.warning(f"Could not load market data: {e}")
+            st.session_state["overview_data"] = None
+            st.session_state["tech_data"] = None
+            st.session_state["dashboard_chart_bytes"] = None
 
     _ov  = st.session_state.get("overview_data")
     _cbs = st.session_state.get("dashboard_chart_bytes")

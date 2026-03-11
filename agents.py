@@ -7,7 +7,10 @@
 
 from datetime import datetime
 
-from config import AGENTS, CIO_TASK, GROUNDING_INSTRUCTION, CONTENT_GUIDELINES, OPENROUTER_MODEL
+from config import (
+    AGENTS, CIO_TASK, GROUNDING_INSTRUCTION, CONTENT_GUIDELINES, OPENROUTER_MODEL,
+    LLM_TEMPERATURE, LLM_MAX_TOKENS, LLM_CIO_TEMPERATURE, LLM_CIO_MAX_TOKENS,
+)
 from llm_client import call_openrouter
 from market_data import format_snapshot_for_prompt, format_technical_block
 
@@ -17,6 +20,8 @@ def run_agent(api_key: str, agent_key: str, ticker: str,
               technical_data: dict | None = None,
               model: str = OPENROUTER_MODEL) -> str:
     """Run a single specialized research agent and return its report as a string."""
+    if agent_key not in AGENTS:
+        raise ValueError(f"Unknown agent key '{agent_key}'. Valid keys: {list(AGENTS.keys())}")
     agent = AGENTS[agent_key]
     print(f"  Generating analysis...")
 
@@ -43,7 +48,8 @@ def run_agent(api_key: str, agent_key: str, ticker: str,
     ]
 
     return call_openrouter(
-        api_key, messages, temperature=0.3, max_tokens=1200, use_web_search=True, model=model
+        api_key, messages, temperature=LLM_TEMPERATURE, max_tokens=LLM_MAX_TOKENS,
+        use_web_search=True, model=model
     )
 
 
@@ -74,4 +80,6 @@ def run_cio(api_key: str, ticker: str, agent_reports: dict, overview_data: dict 
         {"role": "system", "content": cio_system},
         {"role": "user",   "content": prompt},
     ]
-    return call_openrouter(api_key, messages, temperature=0.2, max_tokens=4500, model=model)
+    return call_openrouter(
+        api_key, messages, temperature=LLM_CIO_TEMPERATURE, max_tokens=LLM_CIO_MAX_TOKENS, model=model
+    )
