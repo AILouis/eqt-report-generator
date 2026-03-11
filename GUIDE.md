@@ -39,6 +39,7 @@ The five AI specialists are:
 - **Fundamental Analyst** — digs into the company's financial results: earnings, revenue growth, profit margins, debt levels, and whether the stock price is justified by the business fundamentals
 
 After those five reports, a "CIO" (Chief Investment Officer) reads all of them and produces a final structured verdict that includes:
+
 - An assessment of what the current stock price is already pricing in
 - Where the research disagrees with the market consensus
 - A signal alignment scorecard rating each of the five agents as BULLISH, NEUTRAL, or BEARISH
@@ -55,6 +56,7 @@ After those five reports, a "CIO" (Chief Investment Officer) reads all of them a
 Python is a programming language. This project is written in Python. You need Python version **3.10 or higher** installed on your computer.
 
 To check if you already have Python:
+
 - Open a terminal (on Windows: press Win+R, type `cmd`, press Enter)
 - Type `python --version` and press Enter
 - If it says `Python 3.10.x` or higher, you are good
@@ -67,6 +69,7 @@ When installing Python on Windows, tick the box that says **"Add Python to PATH"
 OpenRouter is a service that provides access to AI models (like Claude, GPT, Gemini, and others) through one unified interface. This project uses OpenRouter to run the AI analysis.
 
 You need a free API key:
+
 1. Go to [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Create a free account
 3. Click "Create Key" to generate your API key
@@ -113,11 +116,13 @@ Replace the path with wherever you extracted the project.
 A **virtual environment** is an isolated copy of Python just for this project. It keeps the project's dependencies separate from other Python projects on your computer and prevents version conflicts.
 
 On Windows:
+
 ```powershell
 python -m venv .venv
 ```
 
 On Mac / Linux:
+
 ```bash
 python3 -m venv .venv
 ```
@@ -129,11 +134,13 @@ This creates a hidden folder called `.venv` inside the project folder. You only 
 You must "activate" the virtual environment each time you open a new terminal window to work on this project.
 
 On Windows (PowerShell):
+
 ```powershell
 .venv\Scripts\activate
 ```
 
 On Mac / Linux:
+
 ```bash
 source .venv/bin/activate
 ```
@@ -141,9 +148,11 @@ source .venv/bin/activate
 After activation, you will see `(.venv)` at the start of your terminal prompt. This tells you the virtual environment is active and all Python commands will use it.
 
 If you get a security error on Windows about scripts being disabled, run this first:
+
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
+
 Then try the activate command again.
 
 ### Step 5: Install the required libraries
@@ -177,9 +186,9 @@ The web UI runs in your browser and is the easiest way to use the tool.
 
 1. Make sure your virtual environment is active (you see `(.venv)` in the terminal)
 2. Run:
-   ```bash
+  ```bash
    streamlit run app.py
-   ```
+  ```
 3. Streamlit will automatically open a browser tab at `http://localhost:8501`. If it does not open automatically, look for that URL in the terminal output and open it manually.
 
 **What you will see in the browser:**
@@ -187,16 +196,19 @@ The web UI runs in your browser and is the easiest way to use the tool.
 The page is divided into a sidebar and a main area.
 
 **Sidebar (always visible on the left):**
+
 - Enter your OpenRouter API key in the password field (characters are hidden as you type; the key is never stored anywhere)
 - Select a model from the dropdown. The default is Claude 3.5 Haiku — a good balance of speed and quality
 - Optionally type any OpenRouter model ID in the "Custom model ID" field to use a different model
 
 **Main area — Step 1: Enter a ticker**
+
 - Type a stock ticker and click "Look Up"
 - Accepted formats: `NVDA`, `AAPL`, `SHEL LN`, `7203 JP`, `0700 HK`, `NVDA.O`, `MC FP`, `SHEL.L`
 - The tool resolves the ticker and looks up the company name from Yahoo Finance
 
 **Main area — Step 2: Confirm and generate**
+
 - After a successful lookup, a green banner confirms the company name (e.g. "Found: NVIDIA Corporation (NVDA)")
 - Live market data is shown: current price (with a green or red delta), 5-day change, year-to-date change, market cap, 52-week high/low, and volume
 - A 1-year candlestick chart with SMA overlays is displayed
@@ -206,6 +218,7 @@ The page is divided into a sidebar and a main area.
 - Total time is approximately 2–3 minutes
 
 **Main area — Step 3: Download**
+
 - When complete, a download button appears
 - Click it to save the PDF to your computer's default downloads folder
 - Nothing is stored on any server — the PDF exists only in your browser session for this tab
@@ -216,19 +229,19 @@ The CLI is faster if you are comfortable with terminals and don't need the visua
 
 1. Make sure your virtual environment is active
 2. Run with a specific ticker:
-   ```bash
+  ```bash
    python main.py --ticker NVDA
-   ```
+  ```
 3. The tool looks up the company name and asks you to confirm:
-   ```
+  ```
      Looking up 'NVDA'...
      Found: NVIDIA Corporation (NVDA). Is this correct? [Y/n]:
-   ```
+  ```
 4. Press Enter (or type `y`) to confirm. Report generation starts immediately.
 5. Progress is printed to the terminal as each step completes. When finished:
-   ```
+  ```
    DONE!  Open your report: Reports/20260310/NVDA/NVDA_Report_20260310_1423.pdf
-   ```
+  ```
 
 **Other CLI options:**
 
@@ -246,9 +259,11 @@ python main.py
 **Where the PDF is saved (CLI):**
 
 Reports are automatically saved inside a `Reports/` subfolder with a date/ticker structure:
+
 ```
 Reports/20260310/NVDA/NVDA_Report_20260310_1423.pdf
 ```
+
 The folder is created automatically if it doesn't exist.
 
 ---
@@ -261,23 +276,24 @@ Here is every Python file in the project, explained in plain English.
 
 This is the most important file in the project. Everything the AI agents say, how they say it, and which model they use is controlled here. It contains:
 
-- **`OPENROUTER_MODEL`**: The default AI model (currently Claude 3.5 Haiku)
-- **`AVAILABLE_MODELS`**: The list of models shown in the web UI dropdown
-- **`AGENTS`**: A dictionary defining all five research agents. Each agent entry has:
+- `**OPENROUTER_MODEL**`: The default AI model (currently Claude 3.5 Haiku)
+- `**AVAILABLE_MODELS**`: The list of models shown in the web UI dropdown
+- `**AGENTS**`: A dictionary defining all five research agents. Each agent entry has:
   - `name`: Display name (e.g. "Macro Agent")
   - `description`: Short description shown in the PDF
   - `persona`: The "system prompt" — instructions telling the AI what role to play
   - `task`: The "user prompt" — what to research and how to format the answer
-- **`CIO_TASK`**: The full instructions for the CIO synthesis step
-- **`GROUNDING_INSTRUCTION`**: Citation rules injected into every agent's system prompt
-- **`CONTENT_GUIDELINES`**: Formatting rules (section headers must be ALL CAPS, use bullet points, max 400 words) injected into every agent's user message
-- **`GLOSSARY`**: A dictionary of about 50 financial terms with definitions. The PDF builder filters this to only the terms that actually appear in the generated report.
+- `**CIO_TASK**`: The full instructions for the CIO synthesis step
+- `**GROUNDING_INSTRUCTION**`: Citation rules injected into every agent's system prompt
+- `**CONTENT_GUIDELINES**`: Formatting rules (section headers must be ALL CAPS, use bullet points, max 400 words) injected into every agent's user message
+- `**GLOSSARY**`: A dictionary of about 50 financial terms with definitions. The PDF builder filters this to only the terms that actually appear in the generated report.
 
 If you want to change what an agent researches, how long the reports are, which model is used, or the style of the output — this is the only file you need to edit.
 
 ### `main.py` — The command line entry point
 
 This is what runs when you type `python main.py`. It:
+
 1. Reads command-line arguments (`--ticker`, `--output`, `--api-key`)
 2. Prompts for a ticker interactively if none was provided
 3. Looks up the company name and asks you to confirm (loops if you say no)
@@ -308,14 +324,15 @@ It also calls the `progress_callback` function (provided by `app.py`) at each ch
 
 This file constructs the messages sent to the AI and calls the API. It contains two functions:
 
-- **`run_agent()`**: Builds the prompt for one agent by combining the agent's persona and task from `config.py` with today's date, the live market snapshot, and (for the technical agent) the pre-computed indicator data. Then calls `llm_client.py` to get the response.
-- **`run_cio()`**: Takes all five finished agent reports, slots them into the `CIO_TASK` template from `config.py`, and calls the AI for the CIO verdict. No web search is used for this step.
+- `**run_agent()**`: Builds the prompt for one agent by combining the agent's persona and task from `config.py` with today's date, the live market snapshot, and (for the technical agent) the pre-computed indicator data. Then calls `llm_client.py` to get the response.
+- `**run_cio()**`: Takes all five finished agent reports, slots them into the `CIO_TASK` template from `config.py`, and calls the AI for the CIO verdict. No web search is used for this step.
 
 ### `llm_client.py` — The HTTP caller
 
 This file contains one function: `call_openrouter()`. It is the lowest-level file in the project — it knows nothing about agents, tickers, or reports. It just sends an HTTP POST request to the OpenRouter API and returns the AI's text response.
 
 It handles retrying automatically if there is a problem:
+
 - **Rate limit (HTTP 429)**: waits 10 seconds, then 20, then 40 before retrying
 - **Server error (HTTP 5xx)**: waits 5 seconds, then 10, then 20
 - **Network failure**: same as server errors
@@ -326,20 +343,20 @@ You do not need to touch this file unless the OpenRouter API itself changes.
 
 This file connects to Yahoo Finance (via the `yfinance` library) to fetch real data and compute indicators. Its main functions:
 
-- **`fetch_stock_overview()`**: Downloads current price, 52-week high/low, market cap, volume, and recent price changes
-- **`compute_technical_data()`**: Downloads 1 year of daily price history and computes SMA-20/50/100/200, RSI-14, MACD (12/26/9), the last 30 rows of OHLCV data, and 5-year average monthly returns (seasonality). Returns `None` if the fetch fails so the pipeline degrades gracefully.
-- **`format_technical_block()`**: Converts the computed data into a formatted text block that gets injected into the technical agent's prompt
-- **`format_snapshot_for_prompt()`**: Converts the overview data into a formatted block injected into all agent prompts
-- **`generate_chart_image()`**: Uses mplfinance to render a 1-year candlestick chart with SMA-20/50/200 overlays, volume subplot, RSI-14 panel, and MACD panel. Returns the image as bytes.
-- **`generate_seasonality_chart()`**: Uses matplotlib to render a bar chart of average returns by calendar month. Returns the image as bytes.
+- `**fetch_stock_overview()`**: Downloads current price, 52-week high/low, market cap, volume, and recent price changes
+- `**compute_technical_data()**`: Downloads 1 year of daily price history and computes SMA-20/50/100/200, RSI-14, MACD (12/26/9), the last 30 rows of OHLCV data, and 5-year average monthly returns (seasonality). Returns `None` if the fetch fails so the pipeline degrades gracefully.
+- `**format_technical_block()**`: Converts the computed data into a formatted text block that gets injected into the technical agent's prompt
+- `**format_snapshot_for_prompt()**`: Converts the overview data into a formatted block injected into all agent prompts
+- `**generate_chart_image()**`: Uses mplfinance to render a 1-year candlestick chart with SMA-20/50/200 overlays, volume subplot, RSI-14 panel, and MACD panel. Returns the image as bytes.
+- `**generate_seasonality_chart()**`: Uses matplotlib to render a bar chart of average returns by calendar month. Returns the image as bytes.
 - Display formatters used by the PDF builder: `fmt_pct()`, `fmt_dollar()`, `fmt_price()`, `fmt_volume()`
 
 ### `text_utils.py` — Text cleaning
 
 The AI responses sometimes contain URLs and citation markers mixed into the analysis text. This file cleans that up. It contains two functions:
 
-- **`extract_citations_and_clean()`**: Runs an 11-step pipeline to extract all source URLs from the AI's SOURCES section, then strips all URLs, markdown links, and citation markers from the body text. Returns a 3-tuple: `(cleaned_text, list_of_citations, metrics_dict)`.
-- **`strip_redundant_content()`**: Removes boilerplate the AI sometimes adds even when instructed not to — things like memo headers ("To:", "From:", "Date:"), "As of March 2026," openers, and bare "References:" headings.
+- `**extract_citations_and_clean()**`: Runs an 11-step pipeline to extract all source URLs from the AI's SOURCES section, then strips all URLs, markdown links, and citation markers from the body text. Returns a 3-tuple: `(cleaned_text, list_of_citations, metrics_dict)`.
+- `**strip_redundant_content()**`: Removes boilerplate the AI sometimes adds even when instructed not to — things like memo headers ("To:", "From:", "Date:"), "As of March 2026," openers, and bare "References:" headings.
 
 ### `pdf_builder.py` — Assembles the final PDF
 
@@ -351,8 +368,8 @@ It also registers fonts: it looks for Windows system fonts (Arial, then SimHei f
 
 Different financial data providers use different naming conventions for the same stock. This file converts user input into the format that Yahoo Finance understands.
 
-- **`normalize_ticker()`**: Pure string conversion — no network calls. Handles Bloomberg space notation (`SHEL LN` → `SHEL.L`), Bloomberg dot notation (`NVDA.US` → `NVDA`), Reuters notation (`NVDA.O` → `NVDA`), and plain tickers.
-- **`resolve_ticker()`**: Calls `normalize_ticker()` then attempts a Yahoo Finance lookup to get the company name. Also tries inserting a hyphen for class-share tickers (`BRKB` → tries `BRK-B`). Returns `(ticker, company_name_or_None)`.
+- `**normalize_ticker()**`: Pure string conversion — no network calls. Handles Bloomberg space notation (`SHEL LN` → `SHEL.L`), Bloomberg dot notation (`NVDA.US` → `NVDA`), Reuters notation (`NVDA.O` → `NVDA`), and plain tickers.
+- `**resolve_ticker()**`: Calls `normalize_ticker()` then attempts a Yahoo Finance lookup to get the company name. Also tries inserting a hyphen for class-share tickers (`BRKB` → tries `BRK-B`). Returns `(ticker, company_name_or_None)`.
 
 ### `requirements.txt` — Dependency list
 
@@ -362,7 +379,7 @@ A plain text file listing the Python libraries this project needs. When you run 
 
 Yahoo Finance blocks requests from cloud datacenter IPs (AWS, GCP, Azure — including Streamlit Cloud) at multiple layers: IP range detection, TLS fingerprint detection, and header checks. This file provides a shared `curl_cffi` session that impersonates a Chrome browser at the TLS level, bypassing all three checks reliably.
 
-- **`get_yf_session()`**: Returns a cached session object. Uses `curl_cffi` with Chrome impersonation if available; falls back to a plain `requests.Session` with browser headers for local development.
+- `**get_yf_session()**`: Returns a cached session object. Uses `curl_cffi` with Chrome impersonation if available; falls back to a plain `requests.Session` with browser headers for local development.
 
 Both `market_data.py` and `ticker_resolver.py` import this session to make their yfinance calls. If you are deploying to a cloud server, make sure `curl_cffi` is installed (it is in `requirements.txt`).
 
@@ -376,7 +393,8 @@ Here is exactly what happens, step by step, from the moment you click "Generate 
 
 The orchestrator calls two functions from `market_data.py`:
 
-**`fetch_stock_overview(ticker)`** — connects to Yahoo Finance and downloads:
+`**fetch_stock_overview(ticker)**` — connects to Yahoo Finance and downloads:
+
 - The current stock price (using `currentPrice`, falling back to `regularMarketPrice`, then `previousClose`, then the most recent close from history)
 - 1-day and 5-day price changes as percentages
 - Year-to-date price change
@@ -384,7 +402,8 @@ The orchestrator calls two functions from `market_data.py`:
 - Market capitalisation
 - Trading volume
 
-**`compute_technical_data(ticker)`** — downloads 1 year of daily price history and computes:
+`**compute_technical_data(ticker)**` — downloads 1 year of daily price history and computes:
+
 - **SMA-20, SMA-50, SMA-100, SMA-200**: rolling averages of closing prices over 20, 50, 100, and 200 sessions. Also calculates how far the current price is above or below each average, as a percentage.
 - **RSI-14**: computed as 100 minus (100 / (1 + RS)), where RS is the ratio of the average 14-day gain to the average 14-day loss. Values above 70 suggest overbought conditions; below 30 suggests oversold.
 - **MACD (12/26/9)**: the MACD line is the 12-period EMA minus the 26-period EMA. The signal line is the 9-period EMA of the MACD line. The histogram is MACD minus signal. When MACD crosses above signal, it is considered a bullish crossover.
@@ -400,12 +419,14 @@ The agents run one after another (not simultaneously) in this order: Technical, 
 For each agent, `agents.py` builds a message with two parts:
 
 **System prompt** (sets the AI's role):
+
 ```
 You are a technical analysis expert with 20 years of experience...
 [citation rules from GROUNDING_INSTRUCTION]
 ```
 
 **User message** (the actual task):
+
 ```
 Today's date is March 10, 2026.
 
@@ -438,6 +459,7 @@ Between each agent call, the orchestrator waits 2 seconds to avoid hitting the A
 ### Step 2: CIO synthesis (about 30–60 seconds)
 
 The orchestrator calls `agents.run_cio()` which builds one large message containing:
+
 - All five agent reports
 - The live market data snapshot
 - Detailed instructions for the 8-section CIO format
@@ -455,6 +477,7 @@ Before building the PDF, the orchestrator passes each agent report through `text
 `pdf_builder.build_pdf()` runs through every section:
 
 **For each agent section**, it calls `text_utils.extract_citations_and_clean()` which:
+
 1. Finds every `[Source Title (Date)](https://url)` link in the SOURCES block
 2. Adds it to a shared `all_sources` list
 3. Strips all URLs and citation markers from the body text
@@ -465,6 +488,7 @@ Then it looks for a `VERDICT:` line (e.g. `VERDICT: BULLISH — Fed tailwinds su
 The rest of the body text is converted into ReportLab flowables: numbered ALL-CAPS lines become subheadings in dark blue, bullet point lines become indented bullets, and plain text becomes body paragraphs.
 
 After all sections are processed, the PDF is assembled with:
+
 - A glossary page showing only the terms from `config.GLOSSARY` that actually appear somewhere in the report text
 - A references page with all `all_sources` rendered as numbered clickable links
 
@@ -479,6 +503,7 @@ The completed PDF is written to disk at the timestamped path (CLI) or returned a
 The dependencies are not installed, or the virtual environment is not active.
 
 Fix:
+
 1. Activate the virtual environment: `.venv\Scripts\activate` (Windows) or `source .venv/bin/activate` (Mac/Linux)
 2. Install dependencies: `pip install -r requirements.txt`
 
@@ -507,6 +532,7 @@ You sent too many requests to the API in a short time. The tool retries automati
 ### Ticker not found — "was not found in market data"
 
 The ticker could not be validated against Yahoo Finance. Possible causes:
+
 - A typo in the ticker symbol (verify it on [finance.yahoo.com](https://finance.yahoo.com))
 - The stock was recently listed and has little history
 - The exchange code is not supported
@@ -522,10 +548,12 @@ Fix: Run the report again — the AI output varies slightly between runs.
 ### The web UI does not open automatically
 
 Streamlit should open a browser tab automatically. If it does not, look for this line in the terminal:
+
 ```
 You can now view your Streamlit app in your browser.
 Local URL: http://localhost:8501
 ```
+
 Open that URL manually in your browser.
 
 ### "streamlit: command not found" after installing
@@ -543,9 +571,11 @@ Chart generation requires `mplfinance` to be installed and the stock to have eno
 PowerShell's execution policy is blocking the activation script.
 
 Fix:
+
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
+
 Then run `.venv\Scripts\activate` again.
 
 ---
