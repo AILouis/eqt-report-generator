@@ -10,19 +10,6 @@ from datetime import datetime
 import yfinance as yf
 
 from yf_session import get_yf_session
-from config import (
-    CHART_COLOR_UP, CHART_COLOR_DOWN,
-    CHART_COLOR_SMA20, CHART_COLOR_SMA50, CHART_COLOR_SMA200,
-    CHART_COLOR_RSI, CHART_COLOR_GRID, CHART_COLOR_BG,
-    CHART_COLOR_RSI_OB, CHART_COLOR_RSI_OS,
-    CHART_COLOR_MACD_LINE, CHART_COLOR_MACD_SIGNAL,
-    CHART_COLOR_EDGE, CHART_COLOR_ZERO_LINE, CHART_COLOR_BAR_LABEL,
-    SMA_PERIODS, RSI_PERIOD, MACD_FAST, MACD_SLOW, MACD_SIGNAL,
-    SEASONALITY_YEARS, MONTH_LABELS,
-    PROMPT_HEADER_SNAPSHOT, PROMPT_HEADER_TECH_INDICATORS,
-    PROMPT_HEADER_MOMENTUM, PROMPT_HEADER_PRICE_HISTORY,
-    PROMPT_HEADER_SEASONALITY,
-)
 
 
 # ── Currency display helpers (shared by format_snapshot_for_prompt and format_technical_block) ──
@@ -45,9 +32,9 @@ def fetch_stock_overview(ticker: str) -> dict | None:
     Returns None if the fetch fails for any reason.
     """
     try:
-        stock = yf.Ticker(ticker, session=get_yf_session())
-        info = stock.info
-        hist = stock.history(period="1y")
+        t = yf.Ticker(ticker, session=get_yf_session())
+        info = t.info
+        hist = t.history(period="1y")
 
         if hist.empty:
             return None
@@ -64,15 +51,15 @@ def fetch_stock_overview(ticker: str) -> dict | None:
             or (float(hist["Close"].iloc[-2]) if len(hist) > 1 else current)
         )
 
-        def _percent_change(now, old):
+        def _pct(now, old):
             return round((now - old) / old * 100, 2) if old else None
 
-        change_1d = _percent_change(current, prev_close) if len(hist) >= 2 else None
-        change_5d = _percent_change(current, hist["Close"].iloc[-5]) if len(hist) >= 5 else None
+        change_1d = _pct(current, prev_close) if len(hist) >= 2 else None
+        change_5d = _pct(current, hist["Close"].iloc[-5]) if len(hist) >= 5 else None
 
         current_year = datetime.now().year
         ytd_hist = hist[hist.index >= f"{current_year}-01-01"]
-        change_ytd = _percent_change(current, float(ytd_hist["Close"].iloc[0])) if len(ytd_hist) > 0 else None
+        change_ytd = _pct(current, float(ytd_hist["Close"].iloc[0])) if len(ytd_hist) > 0 else None
 
         high_52w = info.get("fiftyTwoWeekHigh") or float(hist["High"].max())
         low_52w  = info.get("fiftyTwoWeekLow")  or float(hist["Low"].min())
@@ -85,15 +72,15 @@ def fetch_stock_overview(ticker: str) -> dict | None:
         company_name = info.get("longName") or info.get("shortName") or None
         currency = info.get("currency") or "USD"
 
-        def _round_float(x):
+        def _f(x):
             return round(float(x), 2) if x is not None else None
 
         return {
             "company_name":   company_name,
             "current_price":  round(float(current), 2),
-            "change_1d_pct":  _round_float(change_1d),
-            "change_5d_pct":  _round_float(change_5d),
-            "change_ytd_pct": _round_float(change_ytd),
+            "change_1d_pct":  _f(change_1d),
+            "change_5d_pct":  _f(change_5d),
+            "change_ytd_pct": _f(change_ytd),
             "high_52w":       round(float(high_52w), 2),
             "low_52w":        round(float(low_52w), 2),
             "market_cap":     int(market_cap) if market_cap is not None else None,
@@ -149,38 +136,38 @@ def format_snapshot_for_prompt(overview_data: dict | None) -> str:
             return "N/A"
         return f"{sym}{v:,.0f} {currency}" if zero_dec else f"{sym}{v:,.2f} {currency}"
 
-    def _fmt_pct(v):
+    def _pct(v):
         if v is None:
             return "N/A"
         return f"{v:+.2f}%"
 
-    def _fmt_mcap(v):
+    def _mcap(v):
         if v is None:
             return "N/A"
         return fmt_dollar(v, currency)
 
-    def _fmt_vol(v):
-        return fmt_volume(v, "N/A")
+    def _vol(v):
+        return _format_vol(v)
 
     now_str = datetime.now().strftime("%B %d, %Y %H:%M")
     ticker_raw = overview_data.get("ticker", "")
     company = overview_data.get("company_name") or "N/A"
 
     lines = [
-        PROMPT_HEADER_SNAPSHOT,
+        "=== AUTHORITATIVE MARKET DATA SNAPSHOT ===",
         "Source: yfinance (live fetch)",
         f"As of: {now_str} (system time)",
         "",
         f"Ticker:        {ticker_raw}",
         f"Company:       {company}",
         f"Current Price: {_price(overview_data.get('current_price'))}",
-        f"1D Change:     {_fmt_pct(overview_data.get('change_1d_pct'))}",
-        f"5D Change:     {_fmt_pct(overview_data.get('change_5d_pct'))}",
-        f"YTD Change:    {_fmt_pct(overview_data.get('change_ytd_pct'))}",
+        f"1D Change:     {_pct(overview_data.get('change_1d_pct'))}",
+        f"5D Change:     {_pct(overview_data.get('change_5d_pct'))}",
+        f"YTD Change:    {_pct(overview_data.get('change_ytd_pct'))}",
         f"52W High:      {_price(overview_data.get('high_52w'))}",
         f"52W Low:       {_price(overview_data.get('low_52w'))}",
-        f"Market Cap:    {_fmt_mcap(overview_data.get('market_cap'))}",
-        f"Volume (last): {_fmt_vol(overview_data.get('volume'))}",
+        f"Market Cap:    {_mcap(overview_data.get('market_cap'))}",
+        f"Volume (last): {_vol(overview_data.get('volume'))}",
         "",
         "IMPORTANT: These figures are the authoritative ground truth for this report.",
         "=========================================",
@@ -200,12 +187,11 @@ def compute_technical_data(ticker: str) -> dict | None:
     Returns None on any exception.
     """
     try:
-        stock = yf.Ticker(ticker, session=get_yf_session())
-        info = stock.info
-        hist = stock.history(period="1y")
+        t = yf.Ticker(ticker, session=get_yf_session())
+        info = t.info
+        hist = t.history(period="1y")
 
-        min_sma_period = min(SMA_PERIODS)
-        if hist.empty or len(hist) < min_sma_period:
+        if hist.empty or len(hist) < 20:
             return None
 
         close = hist["Close"]
@@ -222,21 +208,21 @@ def compute_technical_data(ticker: str) -> dict | None:
                 return None
             return (current - sma) / sma * 100
 
-        sma20  = _sma(SMA_PERIODS[0])
-        sma50  = _sma(SMA_PERIODS[1])
-        sma100 = _sma(SMA_PERIODS[2])
-        sma200 = _sma(SMA_PERIODS[3])
+        sma20  = _sma(20)
+        sma50  = _sma(50)
+        sma100 = _sma(100)
+        sma200 = _sma(200)
 
-        # RSI
+        # RSI-14
         rsi_val = None
         rsi_series = _compute_rsi(hist["Close"])
         if rsi_series is not None:
             try:
                 rsi_val = round(float(rsi_series.dropna().iloc[-1]), 2)
-            except (IndexError, ValueError, TypeError):
-                print("  (Warning: RSI extraction failed)")
+            except Exception:
+                pass
 
-        # MACD
+        # MACD (12/26/9)
         macd_line = macd_signal = macd_hist_val = None
         macd_raw, signal_raw, hist_raw = _compute_macd(hist["Close"])
         if macd_raw is not None:
@@ -244,8 +230,8 @@ def compute_technical_data(ticker: str) -> dict | None:
                 macd_line = round(float(macd_raw.iloc[-1]), 4)
                 macd_signal = round(float(signal_raw.iloc[-1]), 4)
                 macd_hist_val = round(float(hist_raw.iloc[-1]), 4)
-            except (IndexError, ValueError, TypeError):
-                print("  (Warning: MACD extraction failed)")
+            except Exception:
+                pass
 
         last30 = hist.tail(30).reset_index()
         ohlcv_rows = []
@@ -261,21 +247,16 @@ def compute_technical_data(ticker: str) -> dict | None:
                 "volume": int(row["Volume"]),
             })
 
-        # Seasonality
+        # Seasonality: 5-year average monthly returns
         seasonality_by_month: dict[int, float] = {}
         try:
-            hist5 = yf.Ticker(
-                ticker, session=get_yf_session()
-            ).history(period=f"{SEASONALITY_YEARS}y")
+            hist5 = yf.Ticker(ticker, session=get_yf_session()).history(period="5y")
             if not hist5.empty and len(hist5) >= 50:
                 monthly = hist5["Close"].resample("ME").last().pct_change().dropna()
                 by_month = monthly.groupby(monthly.index.month).mean() * 100
-                seasonality_by_month = {
-                    int(m): round(float(v), 2)
-                    for m, v in by_month.items()
-                }
-        except Exception as e:
-            print(f"  (Warning: seasonality computation failed — {e})")
+                seasonality_by_month = {int(m): round(float(v), 2) for m, v in by_month.items()}
+        except Exception:
+            pass  # non-fatal — leave empty dict
 
         return {
             "sma20":       sma20,
@@ -319,7 +300,7 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
         return f"{sym}{v:,.0f}" if zero_dec else f"{sym}{v:,.2f}"
 
     def _vol(v):
-        return fmt_volume(v, "N/A")
+        return _format_vol(v)
 
     def _dist_str(d):
         if d is None:
@@ -332,7 +313,7 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
     current = tech_data.get("current_price")
 
     lines = [
-        PROMPT_HEADER_TECH_INDICATORS,
+        "=== COMPUTED TECHNICAL INDICATORS ===",
         f"Source: yfinance 1Y OHLCV (computed locally, as of {now_str})",
         "",
         "Price vs Moving Averages:",
@@ -345,10 +326,10 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
     ]
 
     # Momentum indicators section
-    rsi_val      = tech_data.get("rsi14")
-    macd_line    = tech_data.get("macd_line")
-    macd_signal  = tech_data.get("macd_signal")
-    macd_hist_val = tech_data.get("macd_hist")
+    rsi_val     = tech_data.get("rsi14")
+    macd_line   = tech_data.get("macd_line")
+    macd_signal = tech_data.get("macd_signal")
+    macd_hist_v = tech_data.get("macd_hist")
 
     if rsi_val is not None:
         if rsi_val > 70:
@@ -361,22 +342,18 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
         rsi_interp = None
 
     if macd_line is not None and macd_signal is not None:
-        cross_status = (
-            "MACD above signal (bullish)"
-            if macd_line >= macd_signal
-            else "MACD below signal (bearish)"
-        )
+        cross_status = "MACD above signal (bullish)" if macd_line >= macd_signal else "MACD below signal (bearish)"
     else:
         cross_status = None
 
     lines += [
-        PROMPT_HEADER_MOMENTUM,
+        "=== MOMENTUM INDICATORS ===",
         f"  RSI-14:       {f'{rsi_val:.1f}' if rsi_val is not None else 'N/A'}  ({rsi_interp if rsi_interp else 'N/A'})",
         f"  MACD line:    {f'{macd_line:.4f}' if macd_line is not None else 'N/A'}",
         f"  Signal line:  {f'{macd_signal:.4f}' if macd_signal is not None else 'N/A'}",
-        f"  Histogram:    {f'{macd_hist_val:.4f}' if macd_hist_val is not None else 'N/A'}  ({cross_status if cross_status else 'N/A'})",
+        f"  Histogram:    {f'{macd_hist_v:.4f}' if macd_hist_v is not None else 'N/A'}  ({cross_status if cross_status else 'N/A'})",
         "",
-        PROMPT_HEADER_PRICE_HISTORY,
+        "=== RECENT PRICE HISTORY (Last 30 Sessions) ===",
         f"{'Date':<12}  {'Open':>10}  {'High':>10}  {'Low':>10}  {'Close':>10}  {'Volume':>10}",
     ]
 
@@ -392,16 +369,14 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
 
     season = tech_data.get("seasonality_by_month", {})
     if season:
+        month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         lines.append("")
-        lines.append(PROMPT_HEADER_SEASONALITY)
+        lines.append("=== 5-YEAR AVERAGE MONTHLY SEASONALITY ===")
         row_parts = []
         for m in range(1, 13):
             val = season.get(m)
-            label = MONTH_LABELS[m - 1]
-            row_parts.append(
-                f"{label}: {val:+.1f}%" if val is not None
-                else f"{label}: N/A"
-            )
+            row_parts.append(f"{month_labels[m-1]}: {val:+.1f}%" if val is not None else f"{month_labels[m-1]}: N/A")
         lines.append("  " + "  |  ".join(row_parts))
 
     ticker_ref = ticker or "this ticker"
@@ -415,19 +390,25 @@ def format_technical_block(tech_data: dict | None, ticker: str = "") -> str:
     return "\n".join(lines)
 
 
-def fmt_volume(v, none_value: str = "—") -> str:
-    """Format a share-count volume without a dollar prefix.
-
-    Args:
-        v: Volume value (number of shares)
-        none_value: String to return when v is None. Default "—" for PDF display,
-                    pass "N/A" for prompt blocks.
-
-    Returns:
-        Formatted volume string (e.g., "1.2B", "350M", "15K") or none_value if v is None.
-    """
+def fmt_volume(v) -> str:
+    """Format a share-count volume without a dollar prefix."""
     if v is None:
-        return none_value
+        return "—"
+    if v >= 1e9:
+        return f"{v / 1e9:.2f}B"
+    if v >= 1e6:
+        return f"{v / 1e6:.2f}M"
+    if v >= 1e3:
+        return f"{v / 1e3:.0f}K"
+    return f"{v:,.0f}"
+
+
+# ── Shared helper functions (used by multiple formatters) ──────────────────
+
+def _format_vol(v) -> str:
+    """Format volume for prompt blocks (returns N/A for None, slightly different precision)."""
+    if v is None:
+        return "N/A"
     if v >= 1e9:
         return f"{v / 1e9:.1f}B"
     if v >= 1e6:
@@ -437,13 +418,11 @@ def fmt_volume(v, none_value: str = "—") -> str:
     return f"{v:,.0f}"
 
 
-def _compute_rsi(close_series, period: int = None) -> "pd.Series | None":
+def _compute_rsi(close_series, period: int = 14) -> "pd.Series | None":
     """
     Compute RSI from a close price Series.
     Returns the RSI series, or None on error.
     """
-    if period is None:
-        period = RSI_PERIOD
     try:
         import pandas as pd
         delta = close_series.diff()
@@ -452,22 +431,15 @@ def _compute_rsi(close_series, period: int = None) -> "pd.Series | None":
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
-    except (ValueError, ZeroDivisionError) as e:
-        print(f"  (Warning: RSI computation failed — {e})")
+    except Exception:
         return None
 
 
-def _compute_macd(close_series, fast: int = None, slow: int = None, signal: int = None) -> tuple:
+def _compute_macd(close_series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple:
     """
     Compute MACD from a close price Series.
     Returns (macd_line, signal_line, histogram) as tuple of Series or None values.
     """
-    if fast is None:
-        fast = MACD_FAST
-    if slow is None:
-        slow = MACD_SLOW
-    if signal is None:
-        signal = MACD_SIGNAL
     try:
         ema_fast = close_series.ewm(span=fast, adjust=False).mean()
         ema_slow = close_series.ewm(span=slow, adjust=False).mean()
@@ -475,8 +447,7 @@ def _compute_macd(close_series, fast: int = None, slow: int = None, signal: int 
         signal_raw = macd_raw.ewm(span=signal, adjust=False).mean()
         hist = macd_raw - signal_raw
         return macd_raw, signal_raw, hist
-    except (ValueError, ZeroDivisionError) as e:
-        print(f"  (Warning: MACD computation failed — {e})")
+    except Exception:
         return None, None, None
 
 
@@ -507,23 +478,19 @@ def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO
             df.index = df.index.tz_localize(None)
 
         try:
-            warmup = (
-                yf.Ticker(ticker, session=get_yf_session()).history(period="2y")
-                if ticker else df
-            )
+            warmup = yf.Ticker(ticker, session=get_yf_session()).history(period="2y") if ticker else df
             if warmup.empty or len(warmup) <= len(df):
                 warmup = df
             if hasattr(warmup.index, "tz") and warmup.index.tz is not None:
                 warmup.index = warmup.index.tz_localize(None)
-        except Exception as e:
-            print(f"  (Warning: chart warmup fetch failed — {e})")
+        except Exception:
             warmup = df
 
         sma_addplots = []
         sma_configs = [
-            (SMA_PERIODS[0], CHART_COLOR_SMA20, f"SMA-{SMA_PERIODS[0]}"),
-            (SMA_PERIODS[1], CHART_COLOR_SMA50, f"SMA-{SMA_PERIODS[1]}"),
-            (SMA_PERIODS[3], CHART_COLOR_SMA200, f"SMA-{SMA_PERIODS[3]}"),
+            (20,  "#2962FF", "SMA-20"),
+            (50,  "#FF6D00", "SMA-50"),
+            (200, "#6600CC", "SMA-200"),
         ]
         for period, color, label in sma_configs:
             sma_full = warmup["Close"].rolling(period).mean()
@@ -534,19 +501,19 @@ def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO
                 )
 
         mc = mpf.make_marketcolors(
-            up=CHART_COLOR_UP, down=CHART_COLOR_DOWN,
-            wick={"up": CHART_COLOR_UP, "down": CHART_COLOR_DOWN},
-            volume={"up": CHART_COLOR_UP, "down": CHART_COLOR_DOWN},
+            up="#26A69A", down="#EF5350",
+            wick={"up": "#26A69A", "down": "#EF5350"},
+            volume={"up": "#26A69A", "down": "#EF5350"},
             edge="inherit",
         )
         style = mpf.make_mpf_style(
             marketcolors=mc,
-            facecolor=CHART_COLOR_BG,
-            gridcolor=CHART_COLOR_GRID,
+            facecolor="#FFFFFF",
+            gridcolor="#F0F3FA",
             gridstyle="-",
             gridaxis="both",
-            edgecolor=CHART_COLOR_EDGE,
-            figcolor=CHART_COLOR_BG,
+            edgecolor="#CCCCCC",
+            figcolor="#FFFFFF",
             rc={
                 "axes.spines.top":   False,
                 "axes.spines.right": False,
@@ -575,38 +542,29 @@ def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO
         additional_plots = list(sma_addplots)
         if rsi_has_data:
             additional_plots.append(mpf.make_addplot(
-                rsi_display, panel=2, color=CHART_COLOR_RSI,
-                width=1.0, ylabel='RSI(14)',
+                rsi_display, panel=2, color='#7B1FA2', width=1.0, ylabel='RSI(14)'
             ))
             additional_plots.append(mpf.make_addplot(
                 pd.Series([70] * len(df), index=df.index),
-                panel=2, color=CHART_COLOR_RSI_OB,
-                linestyle='--', width=0.6, secondary_y=False,
+                panel=2, color='#EF5350', linestyle='--', width=0.6, secondary_y=False
             ))
             additional_plots.append(mpf.make_addplot(
                 pd.Series([30] * len(df), index=df.index),
-                panel=2, color=CHART_COLOR_RSI_OS,
-                linestyle='--', width=0.6, secondary_y=False,
+                panel=2, color='#26A69A', linestyle='--', width=0.6, secondary_y=False
             ))
 
         if macd_has_data:
             additional_plots.append(mpf.make_addplot(
                 macd_hist_series, panel=3, type='bar',
-                color=[
-                    CHART_COLOR_UP if v >= 0 else CHART_COLOR_DOWN
-                    for v in macd_hist_series.fillna(0)
-                ],
-                alpha=0.6, width=0.8, ylabel='MACD',
+                color=['#26A69A' if v >= 0 else '#EF5350' for v in macd_hist_series.fillna(0)],
+                alpha=0.6, width=0.8, ylabel='MACD'
             ))
             additional_plots.append(mpf.make_addplot(
-                macd_line_series, panel=3,
-                color=CHART_COLOR_MACD_LINE,
-                width=0.9, secondary_y=False,
+                macd_line_series, panel=3, color='#2962FF', width=0.9, secondary_y=False
             ))
             additional_plots.append(mpf.make_addplot(
-                macd_signal_series, panel=3,
-                color=CHART_COLOR_MACD_SIGNAL,
-                width=0.9, linestyle='--', secondary_y=False,
+                macd_signal_series, panel=3, color='#FF6D00', width=0.9,
+                linestyle='--', secondary_y=False
             ))
 
         if rsi_has_data and macd_has_data:
@@ -658,35 +616,31 @@ def generate_seasonality_chart(ticker: str, tech_data: dict | None = None) -> "i
     try:
         import matplotlib.pyplot as plt
 
+        labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
         # Use pre-computed data if available, avoiding a redundant yfinance call
         season = (tech_data or {}).get("seasonality_by_month", {})
         if season:
             values = [float(season.get(m, 0.0)) for m in range(1, 13)]
         else:
-            hist = yf.Ticker(
-                ticker, session=get_yf_session()
-            ).history(period="5y")
+            hist = yf.Ticker(ticker, session=get_yf_session()).history(period="5y")
             if hist.empty or len(hist) < 50:
                 return None
             monthly = hist["Close"].resample("ME").last().pct_change().dropna()
             by_month = monthly.groupby(monthly.index.month).mean() * 100
             values = [float(by_month.get(m, 0.0)) for m in range(1, 13)]
 
-        bar_colors = [
-            CHART_COLOR_UP if v >= 0 else CHART_COLOR_DOWN
-            for v in values
-        ]
+        bar_colors = ["#26A69A" if v >= 0 else "#EF5350" for v in values]
 
         fig, ax = plt.subplots(figsize=(8.5, 2.8))
-        ax.bar(MONTH_LABELS, values, color=bar_colors,
-               width=0.65, edgecolor="none")
-        ax.axhline(0, color=CHART_COLOR_ZERO_LINE, linewidth=0.7)
+        ax.bar(labels, values, color=bar_colors, width=0.65, edgecolor="none")
+        ax.axhline(0, color="#888888", linewidth=0.7)
 
         ax.set_axisbelow(True)
-        ax.grid(axis="y", color=CHART_COLOR_GRID,
-                linestyle="-", linewidth=0.8)
-        ax.spines["left"].set_color(CHART_COLOR_EDGE)
-        ax.spines["bottom"].set_color(CHART_COLOR_EDGE)
+        ax.grid(axis="y", color="#F0F3FA", linestyle="-", linewidth=0.8)
+        ax.spines["left"].set_color("#CCCCCC")
+        ax.spines["bottom"].set_color("#CCCCCC")
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
@@ -696,16 +650,14 @@ def generate_seasonality_chart(ticker: str, tech_data: dict | None = None) -> "i
             fontsize=9, fontweight="bold", pad=6,
         )
         ax.tick_params(axis="both", labelsize=7)
-        ax.set_facecolor(CHART_COLOR_BG)
-        fig.patch.set_facecolor(CHART_COLOR_BG)
+        ax.set_facecolor("#FFFFFF")
+        fig.patch.set_facecolor("#FFFFFF")
 
         for i, v in enumerate(values):
-            va = "bottom" if v >= 0 else "top"
+            va   = "bottom" if v >= 0 else "top"
             ypos = v + (0.05 if v >= 0 else -0.05)
-            ax.text(
-                i, ypos, f"{v:+.1f}%", ha="center", va=va,
-                fontsize=6.5, color=CHART_COLOR_BAR_LABEL,
-            )
+            ax.text(i, ypos, f"{v:+.1f}%", ha="center", va=va,
+                    fontsize=6.5, color="#444444")
 
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=130, bbox_inches="tight", facecolor="white")

@@ -9,7 +9,7 @@ import os
 import time
 from datetime import datetime
 
-from config import AGENTS, AGENT_RUN_ORDER, OPENROUTER_MODEL
+from config import AGENTS, OPENROUTER_MODEL
 from agents import run_agent, run_cio
 from market_data import fetch_stock_overview, compute_technical_data
 from text_utils import strip_redundant_content
@@ -120,7 +120,7 @@ def generate_report(
     print("STEP 1: Running specialized research agents...\n")
     agent_reports = {}
     t1 = time.time()
-    agent_keys = AGENT_RUN_ORDER
+    agent_keys = ["technical", "macro", "flow", "narrative", "fundamental"]
     for agent_index, agent_key in enumerate(agent_keys):
         agent_name = AGENTS[agent_key]["name"]
         print(f"  [{agent_key.upper()}] {agent_name}")

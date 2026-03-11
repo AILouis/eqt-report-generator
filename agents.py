@@ -8,10 +8,8 @@
 from datetime import datetime
 
 from config import (
-    AGENTS, CIO_TASK, CIO_SYSTEM_PROMPT,
-    GROUNDING_INSTRUCTION, CONTENT_GUIDELINES, OPENROUTER_MODEL,
-    LLM_TEMPERATURE, LLM_MAX_TOKENS,
-    LLM_CIO_TEMPERATURE, LLM_CIO_MAX_TOKENS,
+    AGENTS, CIO_TASK, GROUNDING_INSTRUCTION, CONTENT_GUIDELINES, OPENROUTER_MODEL,
+    LLM_TEMPERATURE, LLM_MAX_TOKENS, LLM_CIO_TEMPERATURE, LLM_CIO_MAX_TOKENS,
 )
 from llm_client import call_openrouter
 from market_data import format_snapshot_for_prompt, format_technical_block
@@ -71,14 +69,17 @@ def run_cio(api_key: str, ticker: str, agent_reports: dict, overview_data: dict 
         market_snapshot=snapshot_block,
     )
 
+    cio_system = (
+        "You are the CIO of an elite multi-strategy hedge fund. "
+        "Respond ONLY with the structured sections requested. "
+        "Use bullet points (•) for all list items. "
+        "Do NOT use markdown formatting. "
+        "Do NOT add a SOURCES block."
+    )
     messages = [
-        {"role": "system", "content": CIO_SYSTEM_PROMPT},
+        {"role": "system", "content": cio_system},
         {"role": "user",   "content": prompt},
     ]
     return call_openrouter(
-        api_key, messages,
-        temperature=LLM_CIO_TEMPERATURE,
-        max_tokens=LLM_CIO_MAX_TOKENS,
-        use_web_search=False,
-        model=model,
+        api_key, messages, temperature=LLM_CIO_TEMPERATURE, max_tokens=LLM_CIO_MAX_TOKENS, model=model
     )

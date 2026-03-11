@@ -19,12 +19,7 @@ from reportlab.platypus import (
     HRFlowable, Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
-from config import (
-    OPENROUTER_MODEL, PDF_COLOR_DARK_BLUE, PDF_COLOR_ACCENT,
-    PDF_COLOR_LIGHT_BG, AGENTS, AGENT_RUN_ORDER, GLOSSARY,
-    PDF_SECTION_OVERVIEW, PDF_SECTION_CIO,
-    PDF_SECTION_GLOSSARY, PDF_SECTION_REFERENCES,
-)
+from config import OPENROUTER_MODEL, PDF_COLOR_DARK_BLUE, PDF_COLOR_ACCENT, PDF_COLOR_LIGHT_BG, AGENTS, GLOSSARY
 from market_data import fmt_dollar, fmt_pct, fmt_price, fmt_volume, generate_chart_image, generate_seasonality_chart
 from text_utils import extract_citations_and_clean
 
@@ -177,7 +172,6 @@ def _escape_text(s: str) -> str:
 # ── Style factory ─────────────────────────────────────────────────
 
 def _build_styles():
-    """Create the ParagraphStyle dict used by all PDF sections."""
     base = getSampleStyleSheet()
     return {
         "confidential": ParagraphStyle(
@@ -424,9 +418,10 @@ def build_pdf(
 
     # Stock overview
     if overview_data:
-        story.append(Paragraph(PDF_SECTION_OVERVIEW, styles["section_header"]))
+        story.append(Paragraph("Stock Overview", styles["section_header"]))
         story.append(Spacer(1, 3))
-        _currency = overview_data.get("currency", "USD") or "USD"
+        o = overview_data
+        _currency = o.get("currency", "USD") or "USD"
         _GREEN = colors.HexColor("#1A7A4A")
         _RED   = colors.HexColor("#C0392B")
 
@@ -439,36 +434,19 @@ def build_pdf(
                 return None
 
         overview_rows = [
-            [
-                "Current Price",
-                fmt_price(overview_data['current_price'], _currency),
-                "1D Change",
-                fmt_pct(overview_data.get("change_1d_pct")),
-            ],
-            [
-                "5D Change",
-                fmt_pct(overview_data.get("change_5d_pct")),
-                "YTD Change",
-                fmt_pct(overview_data.get("change_ytd_pct")),
-            ],
-            [
-                "52W High",
-                fmt_price(overview_data['high_52w'], _currency),
-                "52W Low",
-                fmt_price(overview_data['low_52w'], _currency),
-            ],
+            ["Current Price", fmt_price(o['current_price'], _currency), "1D Change",  fmt_pct(o.get("change_1d_pct"))],
+            ["5D Change",     fmt_pct(o.get("change_5d_pct")),           "YTD Change", fmt_pct(o.get("change_ytd_pct"))],
+            ["52W High",      fmt_price(o['high_52w'], _currency),       "52W Low",    fmt_price(o['low_52w'], _currency)],
         ]
         change_cells = [
-            (0, 3, overview_data.get("change_1d_pct")),
-            (1, 1, overview_data.get("change_5d_pct")),
-            (1, 3, overview_data.get("change_ytd_pct")),
+            (0, 3, o.get("change_1d_pct")),
+            (1, 1, o.get("change_5d_pct")),
+            (1, 3, o.get("change_ytd_pct")),
         ]
-        if overview_data.get("market_cap") or overview_data.get("volume"):
+        if o.get("market_cap") or o.get("volume"):
             overview_rows.append([
-                "Market Cap",
-                fmt_dollar(overview_data.get("market_cap"), _currency),
-                "Volume",
-                fmt_volume(overview_data.get("volume")),
+                "Market Cap", fmt_dollar(o.get("market_cap"), _currency),
+                "Volume",     fmt_volume(o.get("volume")),
             ])
         ov_table = Table(overview_rows, colWidths=[1.4 * inch, 1.8 * inch, 1.4 * inch, 1.8 * inch])
         ov_style_cmds = [
@@ -505,8 +483,11 @@ def build_pdf(
             story.append(Spacer(1, 14))
 
     agent_sections = [
-        (key, f"{AGENTS[key]['name']} Report", AGENTS[key]["description"])
-        for key in AGENT_RUN_ORDER
+        ("technical",   "Technical Agent Report",   AGENTS["technical"]["description"]),
+        ("macro",       "Macro Agent Report",       AGENTS["macro"]["description"]),
+        ("flow",        "Flow Agent Report",        AGENTS["flow"]["description"]),
+        ("narrative",   "Narrative Agent Report",   AGENTS["narrative"]["description"]),
+        ("fundamental", "Fundamental Agent Report", AGENTS["fundamental"]["description"]),
     ]
     for agent_key, header_text, persona_desc in agent_sections:
         raw_text = _process(agent_reports[agent_key])
@@ -521,7 +502,7 @@ def build_pdf(
         story.append(Spacer(1, 8))
 
     story.append(PageBreak())
-    story.append(Paragraph(PDF_SECTION_CIO, styles["section_header"]))
+    story.append(Paragraph("CIO Synthesis", styles["section_header"]))
     story.append(Spacer(1, 6))
     story.extend(_text_to_paragraphs(_process(cio_report), styles["body"], styles["bullet"]))
 
@@ -532,7 +513,7 @@ def build_pdf(
     )
     if matched_terms:
         story.append(PageBreak())
-        story.append(Paragraph(PDF_SECTION_GLOSSARY, styles["section_header"]))
+        story.append(Paragraph("Glossary: Terms Explained", styles["section_header"]))
         story.append(Spacer(1, 8))
         term_label_style = ParagraphStyle(
             "gloss_term", parent=styles["body"],
@@ -549,7 +530,7 @@ def build_pdf(
 
     if all_sources:
         story.append(PageBreak())
-        story.append(Paragraph(PDF_SECTION_REFERENCES, styles["section_header"]))
+        story.append(Paragraph("Relevant References & Sources", styles["section_header"]))
         story.append(Spacer(1, 6))
         for i, (label, url) in enumerate(all_sources, 1):
             # Use the CJK-capable style for titles that contain Chinese/Japanese/Korean.
