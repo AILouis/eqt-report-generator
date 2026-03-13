@@ -19,8 +19,6 @@ import re
 
 import yfinance as yf
 
-from yf_session import get_yf_session
-
 
 # ── Bloomberg terminal exchange codes → yfinance suffixes ────────
 # US exchange codes all map to "" (no suffix needed by yfinance).
@@ -154,17 +152,17 @@ def _lookup(ticker: str) -> tuple[str, str | None]:
     Returns (ticker, company_name) on success, (ticker, None) on failure.
     """
     try:
-        t = yf.Ticker(ticker, session=get_yf_session())
+        t = yf.Ticker(ticker)
         info = t.info
 
         name = info.get("longName") or info.get("shortName") or None
 
         # yfinance returns a near-empty dict for invalid tickers.
         # Confirm we have price data as a proxy for a valid symbol.
+        fi = t.fast_info
         has_price = bool(
-            info.get("currentPrice")
-            or info.get("regularMarketPrice")
-            or info.get("previousClose")
+            fi.get("lastPrice")
+            or fi.get("previousClose")
         )
         if not has_price:
             hist = t.history(period="5d")

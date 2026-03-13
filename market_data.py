@@ -9,8 +9,6 @@ from datetime import datetime
 
 import yfinance as yf
 
-from yf_session import get_yf_session
-
 
 # ── Currency display helpers (shared by format_snapshot_for_prompt and format_technical_block) ──
 
@@ -32,22 +30,22 @@ def fetch_stock_overview(ticker: str) -> dict | None:
     Returns None if the fetch fails for any reason.
     """
     try:
-        t = yf.Ticker(ticker, session=get_yf_session())
+        t = yf.Ticker(ticker)
         info = t.info
+        fi = t.fast_info
         hist = t.history(period="1y")
 
         if hist.empty:
             return None
 
         current = (
-            info.get("currentPrice")
-            or info.get("regularMarketPrice")
-            or info.get("previousClose")
+            fi.get("lastPrice")
+            or fi.get("previousClose")
             or float(hist["Close"].iloc[-1])
         )
 
         prev_close = (
-            info.get("previousClose")
+            fi.get("previousClose")
             or (float(hist["Close"].iloc[-2]) if len(hist) > 1 else current)
         )
 
@@ -61,16 +59,16 @@ def fetch_stock_overview(ticker: str) -> dict | None:
         ytd_hist = hist[hist.index >= f"{current_year}-01-01"]
         change_ytd = _pct(current, float(ytd_hist["Close"].iloc[0])) if len(ytd_hist) > 0 else None
 
-        high_52w = info.get("fiftyTwoWeekHigh") or float(hist["High"].max())
-        low_52w  = info.get("fiftyTwoWeekLow")  or float(hist["Low"].min())
+        high_52w = fi.get("yearHigh") or float(hist["High"].max())
+        low_52w  = fi.get("yearLow")  or float(hist["Low"].min())
 
-        market_cap = info.get("marketCap")
-        volume = info.get("volume") or info.get("averageVolume")
+        market_cap = fi.get("marketCap")
+        volume = fi.get("lastVolume")
         if volume is None and not hist.empty:
             volume = int(hist["Volume"].iloc[-1])
 
         company_name = info.get("longName") or info.get("shortName") or None
-        currency = info.get("currency") or "USD"
+        currency = fi.get("currency") or info.get("currency") or "USD"
 
         def _f(x):
             return round(float(x), 2) if x is not None else None
@@ -187,8 +185,9 @@ def compute_technical_data(ticker: str) -> dict | None:
     Returns None on any exception.
     """
     try:
-        t = yf.Ticker(ticker, session=get_yf_session())
+        t = yf.Ticker(ticker)
         info = t.info
+        fi = t.fast_info
         hist = t.history(period="1y")
 
         if hist.empty or len(hist) < 20:
@@ -196,7 +195,7 @@ def compute_technical_data(ticker: str) -> dict | None:
 
         close = hist["Close"]
         current = float(close.iloc[-1])
-        currency = info.get("currency") or "USD"
+        currency = fi.get("currency") or info.get("currency") or "USD"
 
         def _sma(n):
             if len(close) < n:
@@ -250,7 +249,7 @@ def compute_technical_data(ticker: str) -> dict | None:
         # Seasonality: 5-year average monthly returns
         seasonality_by_month: dict[int, float] = {}
         try:
-            hist5 = yf.Ticker(ticker, session=get_yf_session()).history(period="5y")
+            hist5 = yf.Ticker(ticker).history(period="5y")
             if not hist5.empty and len(hist5) >= 50:
                 monthly = hist5["Close"].resample("ME").last().pct_change().dropna()
                 by_month = monthly.groupby(monthly.index.month).mean() * 100
@@ -478,7 +477,7 @@ def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO
             df.index = df.index.tz_localize(None)
 
         try:
-            warmup = yf.Ticker(ticker, session=get_yf_session()).history(period="2y") if ticker else df
+            warmup = yf.Ticker(ticker).history(period="2y") if ticker else df
             if warmup.empty or len(warmup) <= len(df):
                 warmup = df
             if hasattr(warmup.index, "tz") and warmup.index.tz is not None:
@@ -624,7 +623,7 @@ def generate_seasonality_chart(ticker: str, tech_data: dict | None = None) -> "i
         if season:
             values = [float(season.get(m, 0.0)) for m in range(1, 13)]
         else:
-            hist = yf.Ticker(ticker, session=get_yf_session()).history(period="5y")
+            hist = yf.Ticker(ticker).history(period="5y")
             if hist.empty or len(hist) < 50:
                 return None
             monthly = hist["Close"].resample("ME").last().pct_change().dropna()
