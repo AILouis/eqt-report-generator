@@ -8,6 +8,7 @@ import io
 from datetime import datetime
 
 import yfinance as yf
+from yf_session import get_yf_session
 
 
 # ── Currency display helpers (shared by format_snapshot_for_prompt and format_technical_block) ──
@@ -30,7 +31,7 @@ def fetch_stock_overview(ticker: str) -> dict | None:
     Returns None if the fetch fails for any reason.
     """
     try:
-        t = yf.Ticker(ticker)
+        t = yf.Ticker(ticker, session=get_yf_session())
         info = t.info
         fi = t.fast_info
         hist = t.history(period="1y")
@@ -185,7 +186,7 @@ def compute_technical_data(ticker: str) -> dict | None:
     Returns None on any exception.
     """
     try:
-        t = yf.Ticker(ticker)
+        t = yf.Ticker(ticker, session=get_yf_session())
         info = t.info
         fi = t.fast_info
         hist = t.history(period="1y")
@@ -247,9 +248,12 @@ def compute_technical_data(ticker: str) -> dict | None:
             })
 
         # Seasonality: 5-year average monthly returns
+        # Also pre-fetch 2Y OHLCV so generate_chart_image() avoids a redundant call (H-4)
         seasonality_by_month: dict[int, float] = {}
+        hist2y = None
         try:
-            hist5 = yf.Ticker(ticker).history(period="5y")
+            hist2y = t.history(period="2y")
+            hist5 = t.history(period="5y")
             if not hist5.empty and len(hist5) >= 50:
                 monthly = hist5["Close"].resample("ME").last().pct_change().dropna()
                 by_month = monthly.groupby(monthly.index.month).mean() * 100
@@ -272,6 +276,7 @@ def compute_technical_data(ticker: str) -> dict | None:
             "macd_hist":   macd_hist_val,
             "ohlcv_rows":  ohlcv_rows,
             "ohlcv_df":    hist,
+            "ohlcv_df_2y": hist2y,
             "currency":    currency,
             "current_price": current,
             "seasonality_by_month": seasonality_by_month,
@@ -423,7 +428,6 @@ def _compute_rsi(close_series, period: int = 14) -> "pd.Series | None":
     Returns the RSI series, or None on error.
     """
     try:
-        import pandas as pd
         delta = close_series.diff()
         gain = delta.clip(lower=0).rolling(period).mean()
         loss = (-delta.clip(upper=0)).rolling(period).mean()
@@ -477,8 +481,14 @@ def generate_chart_image(tech_data: dict | None, ticker: str = "") -> io.BytesIO
             df.index = df.index.tz_localize(None)
 
         try:
-            warmup = yf.Ticker(ticker).history(period="2y") if ticker else df
-            if warmup.empty or len(warmup) <= len(df):
+            df2y = tech_data.get("ohlcv_df_2y") if tech_data else None
+            if df2y is not None and not df2y.empty and len(df2y) > len(df):
+                warmup = df2y.copy()
+            elif ticker:
+                warmup = yf.Ticker(ticker, session=get_yf_session()).history(period="2y")
+                if warmup.empty or len(warmup) <= len(df):
+                    warmup = df
+            else:
                 warmup = df
             if hasattr(warmup.index, "tz") and warmup.index.tz is not None:
                 warmup.index = warmup.index.tz_localize(None)
@@ -623,7 +633,7 @@ def generate_seasonality_chart(ticker: str, tech_data: dict | None = None) -> "i
         if season:
             values = [float(season.get(m, 0.0)) for m in range(1, 13)]
         else:
-            hist = yf.Ticker(ticker).history(period="5y")
+            hist = yf.Ticker(ticker, session=get_yf_session()).history(period="5y")
             if hist.empty or len(hist) < 50:
                 return None
             monthly = hist["Close"].resample("ME").last().pct_change().dropna()

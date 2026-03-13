@@ -7,11 +7,12 @@
 
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from config import AGENTS, OPENROUTER_MODEL
 from agents import run_agent, run_cio
-from market_data import fetch_stock_overview, compute_technical_data
+from market_data import fetch_stock_overview, compute_technical_data, format_snapshot_for_prompt, fmt_price
 from text_utils import strip_redundant_content
 from pdf_builder import build_pdf
 
@@ -88,10 +89,11 @@ def generate_report(
         current_price = overview_data.get('current_price')
         low_52w = overview_data.get('low_52w')
         high_52w = overview_data.get('high_52w')
+        currency = overview_data.get('currency', 'USD')
         if current_price is not None and low_52w is not None and high_52w is not None:
             print(
-                f"  Current: ${current_price:,.2f} | "
-                f"52W: ${low_52w:,.2f}–${high_52w:,.2f}\n"
+                f"  Current: {fmt_price(current_price, currency)} | "
+                f"52W: {fmt_price(low_52w, currency)}–{fmt_price(high_52w, currency)}\n"
             )
     else:
         print("  (Overview data unavailable; section will be omitted.)\n")
@@ -114,27 +116,44 @@ def generate_report(
             if sma:
                 technical_data[dist_key] = (cp - sma) / sma * 100
 
+    # Pre-compute snapshot block once so all agents share the same timestamp (H-8)
+    snapshot_block = format_snapshot_for_prompt(overview_data) if overview_data else ""
+
     _report_progress(progress_callback, 1, 8, "Market data fetched")
 
-    # Step 1: Five specialized research agents
-    print("STEP 1: Running specialized research agents...\n")
+    # Step 1: Five specialized research agents (run concurrently — H-2)
+    print("STEP 1: Running specialized research agents (parallel)...\n")
     agent_reports = {}
     t1 = time.time()
     agent_keys = ["technical", "macro", "flow", "narrative", "fundamental"]
-    for agent_index, agent_key in enumerate(agent_keys):
-        agent_name = AGENTS[agent_key]["name"]
-        print(f"  [{agent_key.upper()}] {agent_name}")
-        try:
-            report = run_agent(resolved_key, agent_key, ticker,
-                               overview_data=overview_data,
-                               technical_data=technical_data,
-                               model=model)
-            agent_reports[agent_key] = strip_redundant_content(report)
-            print(f"  Done. ({len(report.split())} words)\n")
-        except Exception as e:
-            print(f"  WARNING: {agent_name} failed: {e}\n")
-            agent_reports[agent_key] = f"[Agent failed: {e}]"
-        _report_progress(progress_callback, 2 + agent_index, 8, f"{agent_name} done")
+
+    futures: dict = {}
+    completed_count = 0
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        for agent_key in agent_keys:
+            agent_name = AGENTS[agent_key]["name"]
+            print(f"  [{agent_key.upper()}] {agent_name} — submitting...")
+            future = executor.submit(
+                run_agent, resolved_key, agent_key, ticker,
+                technical_data=technical_data,
+                model=model,
+                snapshot_block=snapshot_block,
+            )
+            futures[future] = agent_key
+
+        for future in as_completed(futures):
+            agent_key = futures[future]
+            agent_name = AGENTS[agent_key]["name"]
+            completed_count += 1
+            try:
+                report = future.result()
+                agent_reports[agent_key] = strip_redundant_content(report)
+                print(f"  [{agent_key.upper()}] done. ({len(report.split())} words)")
+            except Exception as e:
+                print(f"  WARNING: {agent_name} failed: {e}")
+                agent_reports[agent_key] = f"[Agent failed: {e}]"
+            _report_progress(progress_callback, 1 + completed_count, 8, f"{agent_name} done")
+
     step_times["Step 1 (5 agents)"] = time.time() - t1
 
     # Step 2: CIO synthesis
@@ -142,7 +161,8 @@ def generate_report(
     t2 = time.time()
     try:
         cio_report = run_cio(
-            resolved_key, ticker, agent_reports, overview_data=overview_data, model=model
+            resolved_key, ticker, agent_reports,
+            model=model, snapshot_block=snapshot_block,
         )
         cio_report = strip_redundant_content(cio_report)
         print(f"  Done. ({len(cio_report.split())} words)\n")

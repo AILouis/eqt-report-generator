@@ -8,8 +8,8 @@
 from datetime import datetime
 
 from config import (
-    AGENTS, CIO_TASK, GROUNDING_INSTRUCTION, CONTENT_GUIDELINES, OPENROUTER_MODEL,
-    LLM_TEMPERATURE, LLM_MAX_TOKENS, LLM_CIO_TEMPERATURE, LLM_CIO_MAX_TOKENS,
+    AGENTS, CIO_TASK, CIO_SYSTEM_PROMPT, GROUNDING_INSTRUCTION, CONTENT_GUIDELINES,
+    OPENROUTER_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS, LLM_CIO_TEMPERATURE, LLM_CIO_MAX_TOKENS,
 )
 from llm_client import call_openrouter
 from market_data import format_snapshot_for_prompt, format_technical_block
@@ -18,7 +18,8 @@ from market_data import format_snapshot_for_prompt, format_technical_block
 def run_agent(api_key: str, agent_key: str, ticker: str,
               overview_data: dict | None = None,
               technical_data: dict | None = None,
-              model: str = OPENROUTER_MODEL) -> str:
+              model: str = OPENROUTER_MODEL,
+              snapshot_block: str | None = None) -> str:
     """Run a single specialized research agent and return its report as a string."""
     if agent_key not in AGENTS:
         raise ValueError(f"Unknown agent key '{agent_key}'. Valid keys: {list(AGENTS.keys())}")
@@ -28,7 +29,8 @@ def run_agent(api_key: str, agent_key: str, ticker: str,
     today = datetime.now().strftime("%B %d, %Y")
     task_content = agent["task"].format(ticker=ticker)
     system_content = f"{agent['persona']}\n\n{GROUNDING_INSTRUCTION}"
-    snapshot_block = format_snapshot_for_prompt(overview_data) if overview_data else ""
+    if snapshot_block is None:
+        snapshot_block = format_snapshot_for_prompt(overview_data) if overview_data else ""
 
     tech_block = ""
     if agent_key == "technical" and technical_data:
@@ -54,11 +56,12 @@ def run_agent(api_key: str, agent_key: str, ticker: str,
 
 
 def run_cio(api_key: str, ticker: str, agent_reports: dict, overview_data: dict | None = None,
-            model: str = OPENROUTER_MODEL) -> str:
+            model: str = OPENROUTER_MODEL, snapshot_block: str | None = None) -> str:
     """Synthesize all five agent reports into a final CIO verdict."""
     print("  Synthesizing all five reports...")
 
-    snapshot_block = format_snapshot_for_prompt(overview_data) if overview_data else ""
+    if snapshot_block is None:
+        snapshot_block = format_snapshot_for_prompt(overview_data) if overview_data else ""
     prompt = CIO_TASK.format(
         ticker=ticker,
         macro=agent_reports.get("macro", "[Agent did not run]"),
@@ -69,15 +72,8 @@ def run_cio(api_key: str, ticker: str, agent_reports: dict, overview_data: dict 
         market_snapshot=snapshot_block,
     )
 
-    cio_system = (
-        "You are the CIO of an elite multi-strategy hedge fund. "
-        "Respond ONLY with the structured sections requested. "
-        "Use bullet points (•) for all list items. "
-        "Do NOT use markdown formatting. "
-        "Do NOT add a SOURCES block."
-    )
     messages = [
-        {"role": "system", "content": cio_system},
+        {"role": "system", "content": CIO_SYSTEM_PROMPT},
         {"role": "user",   "content": prompt},
     ]
     return call_openrouter(

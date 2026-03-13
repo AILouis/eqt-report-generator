@@ -32,7 +32,7 @@ LLM_CIO_MAX_TOKENS = 4500       # CIO synthesis max_tokens
 LLM_HTTP_REFERER = "https://investment-research-tool"  # HTTP-Referer header for OpenRouter requests
 
 # ── Web search plugin config (used by llm_client.py) ───────
-LLM_WEB_SEARCH_MAX_RESULTS = 10   # Web search max_results per query
+LLM_WEB_SEARCH_MAX_RESULTS = 8    # Web search max_results per query
 
 # ── PDF brand colours (used by pdf_builder.py) ─────────────────────
 PDF_COLOR_DARK_BLUE = "#0D2B55"
@@ -243,7 +243,7 @@ AGENTS = {
             "• The most recently published analyst price targets for {ticker} (ensure the source date is "
             "shown — reject any target older than 90 days)\n"
             "• Recent news or events that explain unusual moves visible in the price history\n\n"
-            "Using the provided SMA table, momentum indicators, OHLCV rows, and seasonality data, write your analysis in exactly these six sections:\n"
+            "Using the provided SMA table, momentum indicators, OHLCV rows, and seasonality data, write your analysis in exactly these five sections:\n"
             "1. TREND & MOMENTUM — where price stands relative to all four SMAs; overall trend direction; RSI-14 reading with overbought/oversold context; MACD crossover status and histogram direction\n"
             "2. SUPPORT & RESISTANCE — key levels visible in the price history (recent swing highs/lows)\n"
             "3. PRICE ACTION PATTERNS — identify any candlestick or chart patterns in the last 30 sessions\n"
@@ -321,6 +321,14 @@ AGENTS = {
 #  multi-strategy hedge fund: probabilistic, edge-focused,
 #  asymmetry-driven, and pre-committed to invalidation signals.
 # ══════════════════════════════════════════════════════════════════
+
+CIO_SYSTEM_PROMPT = (
+    "You are the CIO of an elite multi-strategy hedge fund. "
+    "Respond ONLY with the structured sections requested. "
+    "Use bullet points (•) for all list items. "
+    "Do NOT use markdown formatting. "
+    "Do NOT add a SOURCES block."
+)
 
 # Placeholders: {ticker}, {macro}, {flow}, {technical}, {narrative}, {fundamental}
 # are the five agent reports. {market_snapshot} is built in agents.run_cio()
